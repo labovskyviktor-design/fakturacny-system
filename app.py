@@ -33,6 +33,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicializácia databázy
 db.init_app(app)
 
+# Vytvorenie tabuliek pri štarte
+with app.app_context():
+    db.create_all()
+
 # Registrácia pomocných funkcií do Jinja2
 app.jinja_env.globals.update(
     suma_slovom=suma_slovom,
@@ -907,15 +911,6 @@ def remove_stamp():
     db.session.commit()
     
     return jsonify({'success': True})
-
-
-# ==============================================================================
-# INICIALIZÁCIA DATABÁZY
-# ==============================================================================
-
-# Vytvoríme databázu pri importe (pre Gunicorn)
-with app.app_context():
-    db.create_all()
 
 
 # ==============================================================================
