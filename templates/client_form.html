@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Upraviť klienta' if client else 'Nový klient' }} - Fakturačný systém{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h1 class="text-xl font-semibold text-gray-800">
+                {{ 'Upraviť klienta' if client else 'Nový klient' }}
+            </h1>
+        </div>
+        
+        <form action="{{ url_for('client_edit', client_id=client.id) if client else url_for('client_add') }}" method="POST" class="p-6 space-y-6">
+            <!-- Základné údaje -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Názov firmy / Meno *</label>
+                    <input type="text" name="name" id="name" value="{{ client.name if client else '' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kontaktná osoba</label>
+                    <input type="text" name="contact_person" value="{{ client.contact_person if client else '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+            
+            <!-- Adresa -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Adresa</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ulica a číslo *</label>
+                    <input type="text" name="street" id="street" value="{{ client.street if client else '' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mesto *</label>
+                        <input type="text" name="city" id="city" value="{{ client.city if client else '' }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">PSČ *</label>
+                        <input type="text" name="zip_code" id="zip_code" value="{{ client.zip_code if client else '' }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Krajina</label>
+                        <input type="text" name="country" value="{{ client.country if client else 'Slovenská republika' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fakturačné údaje -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Fakturačné údaje</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IČO</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="ico" id="ico" value="{{ client.ico if client else '' }}"
+                                   placeholder="Zadajte IČO a kliknite na Overiť"
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <button type="button" id="rpo-lookup-btn" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                Overiť a doplniť
+                            </button>
+                        </div>
+                        <p id="rpo-status" class="mt-1 text-sm text-gray-500"></p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">DIČ</label>
+                        <input type="text" name="dic" id="dic" value="{{ client.dic if client else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IČ DPH</label>
+                        <input type="text" name="ic_dph" id="ic_dph" value="{{ client.ic_dph if client else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Kontakt -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Kontakt</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="email" value="{{ client.email if client else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefón</label>
+                        <input type="tel" name="phone" value="{{ client.phone if client else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Poznámka</label>
+                        <textarea name="note" rows="3"
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ client.note if client else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tlačidlá -->
+            <div class="border-t pt-6 flex justify-end space-x-3">
+                <a href="{{ url_for('clients_list') }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                    Zrušiť
+                </a>
+                <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                    {{ 'Uložiť zmeny' if client else 'Pridať klienta' }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const lookupBtn = document.getElementById('rpo-lookup-btn');
+    const icoInput = document.getElementById('ico');
+    const statusEl = document.getElementById('rpo-status');
+    
+    if (lookupBtn) {
+        lookupBtn.addEventListener('click', async function() {
+            const ico = icoInput.value.trim();
+            
+            if (!ico || ico.length < 3) {
+                statusEl.textContent = 'Zadajte platné IČO (min. 3 znaky)';
+                statusEl.className = 'mt-1 text-sm text-red-600';
+                return;
+            }
+            
+            // Zobrazíme loading stav
+            lookupBtn.disabled = true;
+            lookupBtn.innerHTML = `
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Hľadám...
+            `;
+            statusEl.textContent = 'Vyhľadávam v registri RPO...';
+            statusEl.className = 'mt-1 text-sm text-blue-600';
+            
+            try {
+                const response = await fetch(`/api/rpo/lookup/${encodeURIComponent(ico)}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const data = result.data;
+                    
+                    // Doplnenie polí
+                    if (data.name) document.getElementById('name').value = data.name;
+                    if (data.street) document.getElementById('street').value = data.street;
+                    if (data.city) document.getElementById('city').value = data.city;
+                    if (data.zip_code) document.getElementById('zip_code').value = data.zip_code;
+                    if (data.dic) document.getElementById('dic').value = data.dic;
+                    if (data.ic_dph) document.getElementById('ic_dph').value = data.ic_dph;
+                    
+                    statusEl.textContent = `✅ Údaje doplnené z RPO: ${data.name}`;
+                    statusEl.className = 'mt-1 text-sm text-green-600';
+                } else {
+                    statusEl.textContent = '❌ Firma s týmto IČO nebola nájdená v RPO';
+                    statusEl.className = 'mt-1 text-sm text-red-600';
+                }
+            } catch (error) {
+                console.error('RPO lookup error:', error);
+                statusEl.textContent = '❌ Chyba pri komunikácii s RPO';
+                statusEl.className = 'mt-1 text-sm text-red-600';
+            } finally {
+                lookupBtn.disabled = false;
+                lookupBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Overiť a doplniť
+                `;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

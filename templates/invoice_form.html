@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Upraviť faktúru ' + invoice.invoice_number if invoice else 'Nová faktúra' }} - Fakturačný systém{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <form action="{{ url_for('invoice_edit', invoice_id=invoice.id) if invoice else url_for('invoice_add') }}" method="POST" id="invoiceForm">
+        <div class="space-y-6">
+            <!-- Hlavička -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-800">
+                            {{ 'Upraviť faktúru ' + invoice.invoice_number if invoice else 'Nová faktúra' }}
+                        </h1>
+                        {% if invoice %}
+                        <p class="text-sm text-gray-500">Vytvorená: {{ format_date_sk(invoice.created_at) }}</p>
+                        {% endif %}
+                    </div>
+                    {% if invoice %}
+                    <span class="px-3 py-1 text-xs font-medium rounded-full {{ get_status_color(invoice.status) }}">
+                        {{ get_status_label(invoice.status) }}
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <!-- Klient a dátumy -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="lg:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Odberateľ *</label>
+                            <div class="flex gap-2">
+                                <select name="client_id" id="clientSelect" required
+                                        class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                    <option value="">Vyberte klienta...</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}" {% if invoice and invoice.client_id == client.id %}selected{% endif %}>
+                                        {{ client.name }} {% if client.city %}({{ client.city }}){% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" id="addNewClientBtn"
+                                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1 whitespace-nowrap">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    </svg>
+                                    Nový klient
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dátum vystavenia *</label>
+                            <input type="date" name="issue_date" value="{{ invoice.issue_date if invoice else today }}" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dátum dodania *</label>
+                            <input type="date" name="delivery_date" value="{{ invoice.delivery_date if invoice else today }}" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dátum splatnosti *</label>
+                            <input type="date" name="due_date" value="{{ invoice.due_date if invoice else default_due_date }}" required
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Forma úhrady *</label>
+                            <select name="payment_method" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                <option value="prevod" {% if invoice and invoice.payment_method == 'prevod' %}selected{% endif %}>Bankový prevod</option>
+                                <option value="hotovost" {% if invoice and invoice.payment_method == 'hotovost' %}selected{% endif %}>Hotovosť</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">DPH</label>
+                            <select name="vat_rate" id="vatRate"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                <option value="0" {% if (invoice and invoice.vat_rate == 0) or (not invoice and not supplier.is_vat_payer) %}selected{% endif %}>Neplatca DPH (0%)</option>
+                                <option value="20" {% if (invoice and invoice.vat_rate == 20) or (not invoice and supplier.is_vat_payer) %}selected{% endif %}>20%</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Formulár nového klienta (skrytý) -->
+            <div id="newClientForm" class="bg-white rounded-xl shadow-sm border-2 border-green-200 hidden">
+                <div class="px-6 py-4 border-b border-green-200 bg-green-50 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-semibold text-green-800">Nový klient</h2>
+                        <p class="text-sm text-green-600">Vyplňte údaje o novom klientovi</p>
+                    </div>
+                    <button type="button" id="cancelNewClientBtn" class="text-green-600 hover:text-green-800">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <!-- IČO s RPO lookup -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IČO</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="newClientIco" placeholder="Zadajte IČO pre automatické doplnenie"
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <button type="button" id="rpoLookupBtn" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                Overiť RPO
+                            </button>
+                        </div>
+                        <p id="rpoStatus" class="mt-1 text-sm text-gray-500"></p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Názov firmy / Meno *</label>
+                            <input type="text" id="newClientName"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ulica a číslo *</label>
+                            <input type="text" id="newClientStreet"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Mesto *</label>
+                            <input type="text" id="newClientCity"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">PSČ *</label>
+                            <input type="text" id="newClientZip"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">DIČ</label>
+                            <input type="text" id="newClientDic"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">IČ DPH</label>
+                            <input type="text" id="newClientIcDph"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" id="newClientEmail"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Telefón</label>
+                            <input type="tel" id="newClientPhone"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end pt-4 border-t">
+                        <button type="button" id="saveNewClientBtn"
+                                class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            Pridať klienta a použiť
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Položky faktúry -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Položky faktúry</h2>
+                    <button type="button" onclick="addItem()" 
+                            class="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center space-x-1">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span>Pridať položku</span>
+                    </button>
+                </div>
+                
+                <div class="p-6">
+                    <!-- Hlavička tabuľky -->
+                    <div class="hidden lg:grid grid-cols-12 gap-2 mb-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <div class="col-span-4">Popis</div>
+                        <div class="col-span-1">Množstvo</div>
+                        <div class="col-span-1">Jedn.</div>
+                        <div class="col-span-2">Predaj. cena</div>
+                        <div class="col-span-2">Nákup. cena</div>
+                        <div class="col-span-1 text-right">Celkom</div>
+                        <div class="col-span-1"></div>
+                    </div>
+                    
+                    <!-- Položky -->
+                    <div id="itemsContainer" class="space-y-4">
+                    </div>
+                </div>
+                
+                <!-- Súčty -->
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                    <div class="max-w-sm ml-auto space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600">Medzisúčet:</span>
+                            <span id="subtotal" class="font-medium">0,00 €</span>
+                        </div>
+                        <div class="flex justify-between text-sm" id="vatRow">
+                            <span class="text-gray-600">DPH (<span id="vatRateDisplay">0</span>%):</span>
+                            <span id="vatAmount" class="font-medium">0,00 €</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold border-t pt-2">
+                            <span>Celkom:</span>
+                            <span id="total" class="text-primary-600">0,00 €</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-green-600 border-t pt-2">
+                            <span>Očakávaný zisk:</span>
+                            <span id="profit" class="font-medium">0,00 €</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Poznámky -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Poznámka na faktúre</label>
+                    <textarea name="note" rows="2" placeholder="Voliteľná poznámka, ktorá sa zobrazí na faktúre..."
+                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">{{ invoice.note if invoice else '' }}</textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Interná poznámka 
+                        <span class="text-gray-400 font-normal">(nezobrazí sa na faktúre)</span>
+                    </label>
+                    <textarea name="internal_note" rows="2" placeholder="Napr.: Pán Čurma sľúbil, že zaplatí do pondelka..."
+                              class="w-full px-4 py-2 border border-yellow-200 bg-yellow-50 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500">{{ invoice.internal_note if invoice else '' }}</textarea>
+                </div>
+            </div>
+            
+            <!-- Tlačidlá -->
+            <div class="flex justify-between">
+                <div>
+                    {% if invoice %}
+                    <a href="{{ url_for('invoice_detail', invoice_id=invoice.id) }}" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                        ← Späť na detail
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="flex space-x-3">
+                    <a href="{{ url_for('invoices_list') }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                        Zrušiť
+                    </a>
+                    <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                        {{ 'Uložiť zmeny' if invoice else 'Vytvoriť faktúru' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let itemIndex = 0;
+const existingItems = [
+    {% if invoice %}{% for item in invoice.items %}{description: "{{ item.description|e }}", itemNote: "{{ (item.item_note or '')|e }}", quantity: {{ item.quantity }}, unit: "{{ item.unit }}", unitPrice: {{ item.unit_price }}, costPrice: {{ item.cost_price or 0 }}},{% endfor %}{% endif %}
+];
+
+function addItem(description = '', quantity = 1, unit = 'ks', unitPrice = 0, costPrice = 0, itemNote = '') {
+    const container = document.getElementById('itemsContainer');
+    const itemHtml = `
+        <div class="item-row p-4 bg-gray-50 rounded-lg space-y-3" data-index="${itemIndex}">
+            <div class="grid grid-cols-12 gap-2 items-start">
+                <div class="col-span-12 lg:col-span-4">
+                    <label class="lg:hidden block text-xs font-medium text-gray-500 mb-1">Názov položky</label>
+                    <input type="text" name="item_description[]" value="${description}" placeholder="Názov položky"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-medium item-description">
+                </div>
+                <div class="col-span-4 lg:col-span-1">
+                    <label class="lg:hidden block text-xs font-medium text-gray-500 mb-1">Množ.</label>
+                    <input type="number" name="item_quantity[]" value="${quantity}" min="0" step="0.01" onchange="calculateTotals()" oninput="calculateTotals()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 item-quantity">
+                </div>
+                <div class="col-span-4 lg:col-span-1">
+                    <label class="lg:hidden block text-xs font-medium text-gray-500 mb-1">Jedn.</label>
+                    <input type="text" name="item_unit[]" value="${unit}" placeholder="ks"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+                <div class="col-span-4 lg:col-span-2">
+                    <label class="lg:hidden block text-xs font-medium text-gray-500 mb-1">Predajná cena</label>
+                    <input type="number" name="item_unit_price[]" value="${unitPrice}" min="0" step="0.01" onchange="calculateTotals()" oninput="calculateTotals()"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 item-price">
+                </div>
+                <div class="col-span-6 lg:col-span-2">
+                    <label class="lg:hidden block text-xs font-medium text-gray-500 mb-1">Nákupná cena</label>
+                    <input type="number" name="item_cost_price[]" value="${costPrice}" min="0" step="0.01" onchange="calculateTotals()" oninput="calculateTotals()"
+                           class="w-full px-3 py-2 border border-orange-200 bg-orange-50 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 item-cost" placeholder="Nákupná">
+                </div>
+                <div class="col-span-4 lg:col-span-1 flex items-center justify-end">
+                    <span class="item-total font-medium text-gray-800">0,00 €</span>
+                </div>
+                <div class="col-span-2 lg:col-span-1 flex items-center justify-end">
+                    <button type="button" onclick="removeItem(this)" class="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="lg:pl-0">
+                <textarea name="item_note[]" rows="2" placeholder="Doplňujúci popis položky (volitelné)..."
+                          class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm text-gray-600">${itemNote}</textarea>
+            </div>
+        </div>`;
+    container.insertAdjacentHTML('beforeend', itemHtml);
+    itemIndex++;
+    calculateTotals();
+}
+
+function removeItem(button) { button.closest('.item-row').remove(); calculateTotals(); }
+
+function calculateTotals() {
+    const rows = document.querySelectorAll('.item-row');
+    let subtotal = 0, totalCost = 0;
+    rows.forEach(row => {
+        const qty = parseFloat(row.querySelector('.item-quantity').value) || 0;
+        const price = parseFloat(row.querySelector('.item-price').value) || 0;
+        const cost = parseFloat(row.querySelector('.item-cost').value) || 0;
+        const total = qty * price;
+        row.querySelector('.item-total').textContent = formatCurrency(total);
+        subtotal += total;
+        totalCost += qty * cost;
+    });
+    const vatRate = parseFloat(document.getElementById('vatRate').value) || 0;
+    const vatAmount = subtotal * (vatRate / 100);
+    document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+    document.getElementById('vatRateDisplay').textContent = vatRate;
+    document.getElementById('vatAmount').textContent = formatCurrency(vatAmount);
+    document.getElementById('total').textContent = formatCurrency(subtotal + vatAmount);
+    document.getElementById('profit').textContent = formatCurrency(subtotal - totalCost);
+    document.getElementById('vatRow').style.display = vatRate > 0 ? 'flex' : 'none';
+}
+
+function formatCurrency(amount) { return amount.toLocaleString('sk-SK', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'; }
+
+document.getElementById('vatRate').addEventListener('change', calculateTotals);
+
+// Funkcia pre zobrazenie chybovej správy
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in';
+    errorDiv.innerHTML = `
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(errorDiv);
+    setTimeout(() => errorDiv.remove(), 3000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (existingItems.length > 0) { existingItems.forEach(item => addItem(item.description, item.quantity, item.unit, item.unitPrice, item.costPrice, item.itemNote || '')); }
+    else { addItem(); }
+    
+    // Nový klient funkcionalita
+    const addNewClientBtn = document.getElementById('addNewClientBtn');
+    const cancelNewClientBtn = document.getElementById('cancelNewClientBtn');
+    const newClientForm = document.getElementById('newClientForm');
+    const clientSelect = document.getElementById('clientSelect');
+    const saveNewClientBtn = document.getElementById('saveNewClientBtn');
+    const rpoLookupBtn = document.getElementById('rpoLookupBtn');
+    const rpoStatus = document.getElementById('rpoStatus');
+    
+    // Zobraz formulár nového klienta
+    addNewClientBtn.addEventListener('click', function() {
+        newClientForm.classList.remove('hidden');
+        newClientForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    
+    // Skry formulár
+    cancelNewClientBtn.addEventListener('click', function() {
+        newClientForm.classList.add('hidden');
+        clearNewClientForm();
+    });
+    
+    // RPO lookup
+    rpoLookupBtn.addEventListener('click', async function() {
+        const ico = document.getElementById('newClientIco').value.trim();
+        if (!ico || ico.length < 3) {
+            rpoStatus.textContent = 'Zadajte platné IČO';
+            rpoStatus.className = 'mt-1 text-sm text-red-600';
+            return;
+        }
+        
+        rpoLookupBtn.disabled = true;
+        rpoLookupBtn.innerHTML = '<svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle></svg> Hľadám...';
+        rpoStatus.textContent = 'Vyhľadávam v RPO...';
+        rpoStatus.className = 'mt-1 text-sm text-blue-600';
+        
+        try {
+            const response = await fetch(`/api/rpo/lookup/${encodeURIComponent(ico)}`);
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                const data = result.data;
+                if (data.name) document.getElementById('newClientName').value = data.name;
+                if (data.street) document.getElementById('newClientStreet').value = data.street;
+                if (data.city) document.getElementById('newClientCity').value = data.city;
+                if (data.zip_code) document.getElementById('newClientZip').value = data.zip_code;
+                if (data.dic) document.getElementById('newClientDic').value = data.dic;
+                if (data.ic_dph) document.getElementById('newClientIcDph').value = data.ic_dph;
+                rpoStatus.textContent = '✅ Údaje doplnené z RPO';
+                rpoStatus.className = 'mt-1 text-sm text-green-600';
+            } else {
+                rpoStatus.textContent = '❌ Firma nenajdená v RPO';
+                rpoStatus.className = 'mt-1 text-sm text-red-600';
+            }
+        } catch (error) {
+            rpoStatus.textContent = '❌ Chyba pri hľadaní';
+            rpoStatus.className = 'mt-1 text-sm text-red-600';
+        } finally {
+            rpoLookupBtn.disabled = false;
+            rpoLookupBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg> Overiť RPO';
+        }
+    });
+    
+    // Uložiť nového klienta
+    saveNewClientBtn.addEventListener('click', async function() {
+        const name = document.getElementById('newClientName').value.trim();
+        const street = document.getElementById('newClientStreet').value.trim();
+        const city = document.getElementById('newClientCity').value.trim();
+        const zip = document.getElementById('newClientZip').value.trim();
+        
+        if (!name || !street || !city || !zip) {
+            alert('Vyplňte všetky povinné polia (Názov, Ulica, Mesto, PSČ)');
+            return;
+        }
+        
+        saveNewClientBtn.disabled = true;
+        saveNewClientBtn.innerHTML = '<svg class="w-5 h-5 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle></svg> Ukladám...';
+        
+        try {
+            const response = await fetch('/api/clients/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    street: street,
+                    city: city,
+                    zip_code: zip,
+                    ico: document.getElementById('newClientIco').value.trim(),
+                    dic: document.getElementById('newClientDic').value.trim(),
+                    ic_dph: document.getElementById('newClientIcDph').value.trim(),
+                    email: document.getElementById('newClientEmail').value.trim(),
+                    phone: document.getElementById('newClientPhone').value.trim()
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Pridáme nového klienta do selectu a vyberieme ho
+                const option = document.createElement('option');
+                option.value = result.client.id;
+                option.textContent = `${result.client.name} (${result.client.city})`;
+                option.selected = true;
+                clientSelect.appendChild(option);
+                
+                // Skryjeme formulár
+                newClientForm.classList.add('hidden');
+                clearNewClientForm();
+                
+                // Notifikácia
+                alert(`✅ Klient "${result.client.name}" bol pridaný a vybraný`);
+            } else {
+                alert('❌ Chyba: ' + (result.error || 'Nepodarilo sa pridať klienta'));
+            }
+        } catch (error) {
+            alert('❌ Chyba pri komunikácii so serverom');
+        } finally {
+            saveNewClientBtn.disabled = false;
+            saveNewClientBtn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Pridať klienta a použiť';
+        }
+    });
+    
+    function clearNewClientForm() {
+        document.getElementById('newClientIco').value = '';
+        document.getElementById('newClientName').value = '';
+        document.getElementById('newClientStreet').value = '';
+        document.getElementById('newClientCity').value = '';
+        document.getElementById('newClientZip').value = '';
+        document.getElementById('newClientDic').value = '';
+        document.getElementById('newClientIcDph').value = '';
+        document.getElementById('newClientEmail').value = '';
+        document.getElementById('newClientPhone').value = '';
+        rpoStatus.textContent = '';
+    }
+});
+</script>
+{% endblock %}

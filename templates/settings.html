@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Nastavenia - Fakturačný systém{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-100">
+            <h1 class="text-xl font-semibold text-gray-800">Nastavenia dodávateľa</h1>
+            <p class="text-gray-500 text-sm mt-1">Vaše firemné údaje, ktoré sa zobrazia na faktúrach</p>
+        </div>
+        
+        <form action="{{ url_for('supplier_settings') }}" method="POST" class="p-6 space-y-6">
+            <!-- Základné údaje -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Názov firmy *</label>
+                    <input type="text" name="name" id="name" value="{{ supplier.name if supplier else '' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+            
+            <!-- Adresa -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Adresa</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Ulica a číslo *</label>
+                        <input type="text" name="street" id="street" value="{{ supplier.street if supplier else '' }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Mesto *</label>
+                        <input type="text" name="city" id="city" value="{{ supplier.city if supplier else '' }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">PSČ *</label>
+                        <input type="text" name="zip_code" id="zip_code" value="{{ supplier.zip_code if supplier else '' }}" required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Krajina</label>
+                        <input type="text" name="country" value="{{ supplier.country if supplier else 'Slovenská republika' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fakturačné údaje -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Fakturačné údaje</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IČO *</label>
+                        <div class="flex gap-2">
+                            <input type="text" name="ico" id="ico" value="{{ supplier.ico if supplier else '' }}" required
+                                   placeholder="Zadajte IČO a kliknite na Overiť"
+                                   class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <button type="button" id="rpo-lookup-btn" 
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                Overiť a doplniť
+                            </button>
+                        </div>
+                        <p id="rpo-status" class="mt-1 text-sm text-gray-500"></p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">DIČ</label>
+                        <input type="text" name="dic" id="dic" value="{{ supplier.dic if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IČ DPH</label>
+                        <input type="text" name="ic_dph" id="ic_dph" value="{{ supplier.ic_dph if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div class="md:col-span-3">
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" name="is_vat_payer" {% if supplier and supplier.is_vat_payer %}checked{% endif %}
+                                   class="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                            <span class="text-sm text-gray-700">Som platca DPH</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bankové údaje -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Bankové spojenie</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Názov banky</label>
+                        <input type="text" name="bank_name" value="{{ supplier.bank_name if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">SWIFT/BIC</label>
+                        <input type="text" name="swift" value="{{ supplier.swift if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
+                        <input type="text" name="iban" value="{{ supplier.iban if supplier else '' }}" placeholder="SK..."
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-mono">
+                        <p class="text-xs text-gray-500 mt-1">IBAN je potrebný pre generovanie PAY by square QR kódu</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Kontakt -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Kontakt</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="email" value="{{ supplier.email if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Telefón</label>
+                        <input type="tel" name="phone" value="{{ supplier.phone if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Web</label>
+                        <input type="text" name="web" value="{{ supplier.web if supplier else '' }}"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Číslovanie faktúr -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Číslovanie faktúr</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Prefix čísla faktúry</label>
+                        <input type="text" name="invoice_prefix" value="{{ supplier.invoice_prefix if supplier else '' }}" placeholder="napr. FV"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <p class="text-xs text-gray-500 mt-1">Číslo faktúry bude: PREFIX + ROK + PORADOVÉ ČÍSLO (napr. FV20240001)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pečiatka a podpis -->
+            <div class="border-t pt-6">
+                <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Pečiatka a podpis</h3>
+                <p class="text-sm text-gray-600 mb-4">Nahrajte obrázky pečiatky a/alebo podpisu, ktoré sa zobrazia na PDF faktúre.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Pečiatka -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center" id="stampDropzone">
+                        <div id="stampPreview" class="mb-4 {% if not supplier or not supplier.stamp_image %}hidden{% endif %}">
+                            {% if supplier and supplier.stamp_image %}
+                            <img src="{{ supplier.stamp_image }}" alt="Pečiatka" class="max-h-32 mx-auto">
+                            {% endif %}
+                        </div>
+                        <div id="stampPlaceholder" class="{% if supplier and supplier.stamp_image %}hidden{% endif %}">
+                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="text-sm text-gray-500">Pečiatka</p>
+                        </div>
+                        <input type="file" id="stampInput" accept="image/*" class="hidden">
+                        <div class="mt-3 flex justify-center gap-2">
+                            <button type="button" onclick="document.getElementById('stampInput').click()" 
+                                    class="px-3 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700">
+                                Nahrať
+                            </button>
+                            <button type="button" id="removeStampBtn" 
+                                    class="px-3 py-1 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 {% if not supplier or not supplier.stamp_image %}hidden{% endif %}">
+                                Odstrániť
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Podpis -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center" id="signatureDropzone">
+                        <div id="signaturePreview" class="mb-4 {% if not supplier or not supplier.signature_image %}hidden{% endif %}">
+                            {% if supplier and supplier.signature_image %}
+                            <img src="{{ supplier.signature_image }}" alt="Podpis" class="max-h-32 mx-auto">
+                            {% endif %}
+                        </div>
+                        <div id="signaturePlaceholder" class="{% if supplier and supplier.signature_image %}hidden{% endif %}">
+                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                            <p class="text-sm text-gray-500">Podpis</p>
+                        </div>
+                        <input type="file" id="signatureInput" accept="image/*" class="hidden">
+                        <div class="mt-3 flex justify-center gap-2">
+                            <button type="button" onclick="document.getElementById('signatureInput').click()" 
+                                    class="px-3 py-1 bg-primary-600 text-white text-sm rounded hover:bg-primary-700">
+                                Nahrať
+                            </button>
+                            <button type="button" id="removeSignatureBtn" 
+                                    class="px-3 py-1 bg-red-100 text-red-700 text-sm rounded hover:bg-red-200 {% if not supplier or not supplier.signature_image %}hidden{% endif %}">
+                                Odstrániť
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Odporúčaný formát: PNG s priehľadným pozadím, max 500x200px</p>
+            </div>
+            
+            <!-- Tlačidlá -->
+            <div class="border-t pt-6 flex justify-end">
+                <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                    Uložiť nastavenia
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // RPO lookup
+    const lookupBtn = document.getElementById('rpo-lookup-btn');
+    const icoInput = document.getElementById('ico');
+    const statusEl = document.getElementById('rpo-status');
+    
+    // Pečiatka upload
+    const stampInput = document.getElementById('stampInput');
+    const signatureInput = document.getElementById('signatureInput');
+    
+    async function uploadImage(file, type) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', type);
+        
+        try {
+            const response = await fetch('/api/upload-stamp', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                const previewId = type === 'signature' ? 'signaturePreview' : 'stampPreview';
+                const placeholderId = type === 'signature' ? 'signaturePlaceholder' : 'stampPlaceholder';
+                const removeBtnId = type === 'signature' ? 'removeSignatureBtn' : 'removeStampBtn';
+                
+                document.getElementById(previewId).innerHTML = `<img src="${result.image_url}" alt="${type}" class="max-h-32 mx-auto">`;
+                document.getElementById(previewId).classList.remove('hidden');
+                document.getElementById(placeholderId).classList.add('hidden');
+                document.getElementById(removeBtnId).classList.remove('hidden');
+                
+                alert('✅ Obrázok bol nahraný');
+            } else {
+                alert('❌ ' + result.error);
+            }
+        } catch (error) {
+            alert('❌ Chyba pri nahrávaní');
+        }
+    }
+    
+    async function removeImage(type) {
+        if (!confirm('Naozaj chcete odstrániť tento obrázok?')) return;
+        
+        try {
+            const response = await fetch('/api/remove-stamp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: type })
+            });
+            const result = await response.json();
+            
+            if (result.success) {
+                const previewId = type === 'signature' ? 'signaturePreview' : 'stampPreview';
+                const placeholderId = type === 'signature' ? 'signaturePlaceholder' : 'stampPlaceholder';
+                const removeBtnId = type === 'signature' ? 'removeSignatureBtn' : 'removeStampBtn';
+                
+                document.getElementById(previewId).classList.add('hidden');
+                document.getElementById(placeholderId).classList.remove('hidden');
+                document.getElementById(removeBtnId).classList.add('hidden');
+            }
+        } catch (error) {
+            alert('❌ Chyba');
+        }
+    }
+    
+    if (stampInput) {
+        stampInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) uploadImage(e.target.files[0], 'stamp');
+        });
+    }
+    
+    if (signatureInput) {
+        signatureInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) uploadImage(e.target.files[0], 'signature');
+        });
+    }
+    
+    document.getElementById('removeStampBtn')?.addEventListener('click', () => removeImage('stamp'));
+    document.getElementById('removeSignatureBtn')?.addEventListener('click', () => removeImage('signature'));
+    
+    if (lookupBtn) {
+        lookupBtn.addEventListener('click', async function() {
+            const ico = icoInput.value.trim();
+            
+            if (!ico || ico.length < 3) {
+                statusEl.textContent = 'Zadajte platné IČO (min. 3 znaky)';
+                statusEl.className = 'mt-1 text-sm text-red-600';
+                return;
+            }
+            
+            lookupBtn.disabled = true;
+            lookupBtn.innerHTML = `
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Hľadám...
+            `;
+            statusEl.textContent = 'Vyhľadávam v registri RPO...';
+            statusEl.className = 'mt-1 text-sm text-blue-600';
+            
+            try {
+                const response = await fetch(`/api/rpo/lookup/${encodeURIComponent(ico)}`);
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const data = result.data;
+                    
+                    if (data.name) document.getElementById('name').value = data.name;
+                    if (data.street) document.getElementById('street').value = data.street;
+                    if (data.city) document.getElementById('city').value = data.city;
+                    if (data.zip_code) document.getElementById('zip_code').value = data.zip_code;
+                    if (data.dic) document.getElementById('dic').value = data.dic;
+                    if (data.ic_dph) document.getElementById('ic_dph').value = data.ic_dph;
+                    
+                    statusEl.textContent = `✅ Údaje doplnené z RPO: ${data.name}`;
+                    statusEl.className = 'mt-1 text-sm text-green-600';
+                } else {
+                    statusEl.textContent = '❌ Firma s týmto IČO nebola nájdená v RPO';
+                    statusEl.className = 'mt-1 text-sm text-red-600';
+                }
+            } catch (error) {
+                console.error('RPO lookup error:', error);
+                statusEl.textContent = '❌ Chyba pri komunikácii s RPO';
+                statusEl.className = 'mt-1 text-sm text-red-600';
+            } finally {
+                lookupBtn.disabled = false;
+                lookupBtn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Overiť a doplniť
+                `;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

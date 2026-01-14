@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Faktúry - Fakturačný systém{% endblock %}
+
+{% block content %}
+<div class="space-y-6 animate-fade-in">
+    <!-- Hlavička -->
+    <div class="flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Faktúry</h1>
+            <p class="text-gray-600 dark:text-gray-400">Prehľad všetkých faktúr</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <!-- Hromadné nástroje -->
+            <div id="bulkActions" class="hidden items-center space-x-2 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg border-2 border-blue-200 dark:border-blue-700">
+                <span class="text-sm font-medium text-blue-700 dark:text-blue-300"><span id="selectedCount">0</span> vybraných</span>
+                <button onclick="bulkMarkPaid()" class="text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 px-3 py-1 rounded text-sm font-medium" title="Označiť ako uhradené">
+                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    Uhradené
+                </button>
+                <button onclick="bulkDelete()" class="text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 px-3 py-1 rounded text-sm font-medium" title="Vymazať">
+                    <svg class="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Vymazať
+                </button>
+            </div>
+            
+            <a href="{{ url_for('invoices_export_csv') }}" class="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>Export CSV</span>
+            </a>
+            <a href="{{ url_for('invoice_add') }}" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 shadow-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                <span>Nová faktúra</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Vyhľadávanie a filtre -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 p-4">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-64">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Vyhľadať podľa klienta alebo čísla faktúry..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-slate-700 dark:text-gray-100 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <svg class="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+            </div>
+    
+            <div class="flex flex-wrap gap-2">
+            <a href="{{ url_for('invoices_list') }}"
+               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                      {% if not status_filter %}bg-slate-800 dark:bg-slate-600 text-white{% else %}bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-600{% endif %}">
+                Všetky
+            </a>
+            <a href="{{ url_for('invoices_list', status='issued') }}" 
+               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                      {% if status_filter == 'issued' %}bg-blue-600 text-white{% else %}bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50{% endif %}">
+                Vystavené
+            </a>
+            <a href="{{ url_for('invoices_list', status='paid') }}" 
+               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                      {% if status_filter == 'paid' %}bg-green-600 text-white{% else %}bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/50{% endif %}">
+                Uhradené
+            </a>
+            <a href="{{ url_for('invoices_list', status='overdue') }}" 
+               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                      {% if status_filter == 'overdue' %}bg-red-600 text-white{% else %}bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/50{% endif %}">
+                Po splatnosti
+            </a>
+            <a href="{{ url_for('invoices_list', status='cancelled') }}" 
+               class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                      {% if status_filter == 'cancelled' %}bg-gray-600 text-white{% else %}bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600{% endif %}">
+                Stornované
+            </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Zoznam faktúr -->
+    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700">
+        {% if invoices %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 dark:bg-slate-700/50">
+                    <tr>
+                        <th class="px-6 py-3 text-left">
+                            <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" class="w-4 h-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:bg-slate-700">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Číslo</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Klient</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dátum vystavenia</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Splatnosť</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Suma</th>
+                        <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Stav</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Akcie</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                    {% for invoice in invoices %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-700/50 invoice-row" data-search="{{ invoice.invoice_number|lower }} {{ invoice.client.name|lower }}" data-invoice-id="{{ invoice.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="checkbox" class="invoice-checkbox w-4 h-4 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 dark:bg-slate-700" data-id="{{ invoice.id }}" onchange="updateBulkActions()">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{{ url_for('invoice_detail', invoice_id=invoice.id) }}" class="font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300">
+                                {{ invoice.invoice_number }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-300">
+                            {{ invoice.client.name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ format_date_sk(invoice.issue_date) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ format_date_sk(invoice.due_date) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right font-medium text-gray-800 dark:text-gray-200">
+                            {{ format_currency(invoice.total) }} €
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-3 py-1 text-xs font-medium rounded-full {{ get_status_color(invoice.status) }}">
+                                {{ get_status_label(invoice.status) }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <div class="flex justify-end space-x-1">
+                                <a href="{{ url_for('invoice_detail', invoice_id=invoice.id) }}" 
+                                   class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg" title="Detail">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                    </svg>
+                                </a>
+                                <a href="{{ url_for('invoice_pdf', invoice_id=invoice.id) }}" 
+                                   class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg" title="PDF">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+            <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <p class="mb-4">
+                {% if status_filter %}
+                    Žiadne faktúry v tomto stave.
+                {% else %}
+                    Zatiaľ nemáte žiadne faktúry.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('invoice_add') }}" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                Vytvoriť faktúru
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Vyhľadávanie
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('.invoice-row');
+    
+    rows.forEach(row => {
+        const searchData = row.dataset.search;
+        if (searchData.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+// Označiť všetky
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.invoice-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateBulkActions();
+}
+
+// Aktualizovať hromadné akcie
+function updateBulkActions() {
+    const checked = document.querySelectorAll('.invoice-checkbox:checked');
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectedCount.textContent = checked.length;
+    
+    if (checked.length > 0) {
+        bulkActions.classList.remove('hidden');
+        bulkActions.classList.add('flex');
+    } else {
+        bulkActions.classList.add('hidden');
+        bulkActions.classList.remove('flex');
+    }
+}
+
+// Hromadne označiť ako uhradené
+function bulkMarkPaid() {
+    const checked = Array.from(document.querySelectorAll('.invoice-checkbox:checked'));
+    const ids = checked.map(cb => cb.dataset.id);
+    
+    if (!confirm(`Označiť ${ids.length} faktúr ako uhradené?`)) return;
+    
+    Promise.all(ids.map(id => 
+        fetch(`/invoices/${id}/mark-paid`, { method: 'POST' })
+    )).then(() => {
+        location.reload();
+    }).catch(err => {
+        alert('Chyba pri aktualizácii faktúr');
+        console.error(err);
+    });
+}
+
+// Hromadne vymazať
+function bulkDelete() {
+    const checked = Array.from(document.querySelectorAll('.invoice-checkbox:checked'));
+    const ids = checked.map(cb => cb.dataset.id);
+    
+    if (!confirm(`Naozaj chcete vymazať ${ids.length} faktúr? Táto akcia je nevratná!`)) return;
+    
+    Promise.all(ids.map(id => 
+        fetch(`/invoices/${id}/delete`, { method: 'POST' })
+    )).then(() => {
+        location.reload();
+    }).catch(err => {
+        alert('Chyba pri mazaní faktúr');
+        console.error(err);
+    });
+}
+</script>
+{% endblock %}
