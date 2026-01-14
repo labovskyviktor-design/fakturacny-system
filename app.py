@@ -20,8 +20,14 @@ from utils import (
 
 # Vytvoríme Flask aplikáciu
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'tajny-kluc-pre-fakturacny-system-2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fakturacny_system.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tajny-kluc-pre-fakturacny-system-2024')
+
+# Databáza - použijeme /tmp na Renderi (ephemeral storage)
+if os.environ.get('RENDER'):
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/fakturacny_system.db'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fakturacny_system.db'
+    
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Inicializácia databázy

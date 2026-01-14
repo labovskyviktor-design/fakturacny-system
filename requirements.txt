@@ -1,17 +1,8 @@
 # Fakturačný systém - závislosti
-# Inštalácia: pip install -r requirements.txt
-
-# Flask framework
 Flask>=2.3.0
-
-# Databáza
 Flask-SQLAlchemy>=3.0.0
-
-# QR kód generátor (pre PAY by square)
+SQLAlchemy>=2.0.0
 qrcode[pil]>=7.4.0
 Pillow>=10.0.0
-
-# PDF export (voliteľné - vyžaduje GTK na Windows)
-# WeasyPrint>=60.0
-# Na Windows odporúčame použiť alternatívu:
-# pdfkit>=1.0.0  # vyžaduje wkhtmltopdf
+requests>=2.31.0
+gunicorn>=21.0.0
