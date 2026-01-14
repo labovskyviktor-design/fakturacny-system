@@ -913,11 +913,9 @@ def remove_stamp():
 # INICIALIZÁCIA DATABÁZY
 # ==============================================================================
 
-def init_db():
-    """Inicializácia databázy"""
-    with app.app_context():
-        db.create_all()
-        print("Databáza bola vytvorená.")
+# Vytvoríme databázu pri importe (pre Gunicorn)
+with app.app_context():
+    db.create_all()
 
 
 # ==============================================================================
@@ -925,9 +923,4 @@ def init_db():
 # ==============================================================================
 
 if __name__ == '__main__':
-    # Vytvoríme databázu ak neexistuje
-    with app.app_context():
-        db.create_all()
-    
-    # Spustíme vývojový server
     app.run(debug=True, host='0.0.0.0', port=5000)
