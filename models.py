@@ -3,8 +3,40 @@ Databázové modely pre fakturačný systém
 """
 from datetime import datetime, date, timedelta
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
+
+
+class User(UserMixin, db.Model):
+    """Používateľ systému"""
+    __tablename__ = 'users'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    company_name = db.Column(db.String(200))  # Názov firmy
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Vzťahy
+    suppliers = db.relationship('Supplier', backref='user', lazy=True)
+    clients = db.relationship('Client', backref='user', lazy=True)
+    invoices = db.relationship('Invoice', backref='user', lazy=True)
+    activity_logs = db.relationship('ActivityLog', backref='user', lazy=True, foreign_keys='ActivityLog.user_id')
+    
+    def set_password(self, password):
+        """Nastaví heslo (hashované)"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Overuje heslo"""
+        return check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.email}>'
 
 
 class Supplier(db.Model):
@@ -12,6 +44,7 @@ class Supplier(db.Model):
     __tablename__ = 'suppliers'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)  # Názov firmy
     street = db.Column(db.String(200), nullable=False)  # Ulica a číslo
     city = db.Column(db.String(100), nullable=False)  # Mesto
@@ -34,8 +67,6 @@ class Supplier(db.Model):
     stamp_image = db.Column(db.Text)  # Pečiatka (Base64)
     signature_image = db.Column(db.Text)  # Podpis (Base64)
     
-    invoices = db.relationship('Invoice', backref='supplier', lazy=True)
-    
     def get_next_invoice_number(self):
         """Vygeneruje ďalšie číslo faktúry"""
         year = datetime.now().year
@@ -49,6 +80,7 @@ class Client(db.Model):
     __tablename__ = 'clients'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     name = db.Column(db.String(200), nullable=False)  # Názov firmy / Meno
     contact_person = db.Column(db.String(100))  # Kontaktná osoba
     street = db.Column(db.String(200), nullable=False)  # Ulica a číslo
@@ -63,8 +95,6 @@ class Client(db.Model):
     note = db.Column(db.Text)  # Poznámka
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    invoices = db.relationship('Invoice', backref='client', lazy=True)
-    
     def __repr__(self):
         return f'<Client {self.name}>'
 
@@ -74,7 +104,8 @@ class Invoice(db.Model):
     __tablename__ = 'invoices'
     
     id = db.Column(db.Integer, primary_key=True)
-    invoice_number = db.Column(db.String(20), unique=True, nullable=False)  # Číslo faktúry
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    invoice_number = db.Column(db.String(20), nullable=False)  # Číslo faktúry (unique per user)
     variable_symbol = db.Column(db.String(20), nullable=False)  # Variabilný symbol
     
     # Dátumy
@@ -194,6 +225,7 @@ class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
     
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     # Typ akcie
     ACTION_INVOICE_CREATED = 'invoice_created'
@@ -217,14 +249,15 @@ class ActivityLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Vzťahy
-    invoice = db.relationship('Invoice', backref=db.backref('activity_logs', lazy=True))
-    client = db.relationship('Client', backref=db.backref('activity_logs', lazy=True))
+    invoice = db.relationship('Invoice', backref=db.backref('logs', lazy=True))
+    client = db.relationship('Client', backref=db.backref('logs', lazy=True))
     
     @classmethod
-    def log(cls, action, description, invoice_id=None, client_id=None, extra_data=None):
+    def log(cls, action, description, user_id, invoice_id=None, client_id=None, extra_data=None):
         """Pomocná metóda na vytvorenie záznamu"""
         import json
         log_entry = cls(
+            user_id=user_id,
             action=action,
             description=description,
             invoice_id=invoice_id,

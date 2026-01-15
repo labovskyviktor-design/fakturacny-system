@@ -1,6 +1,6 @@
 """
-FakturaÄŤnĂ˝ systĂ©m - Flask aplikĂˇcia
-Klon systĂ©mov SuperFaktĂşra / Kros
+Fakturačný systém - Flask aplikácia
+Klon systémov SuperFaktúra / Kros
 """
 import os
 import io
@@ -8,7 +8,8 @@ import csv
 from datetime import date, timedelta
 from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, Response, jsonify
-from models import db, Supplier, Client, Invoice, InvoiceItem, ActivityLog
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from models import db, User, Supplier, Client, Invoice, InvoiceItem, ActivityLog
 from utils.company_lookup import lookup_company
 from utils.pay_by_square import generate_qr_code_base64, generate_sepa_qr
 import base64
@@ -33,6 +34,17 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicializácia databázy
 db.init_app(app)
 
+# Flask-Login setup
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Pre prístup sa musíte prihlásiť.'
+login_manager.login_message_category = 'error'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 # Vytvorenie tabuliek pri štarte
 with app.app_context():
     db.create_all()
@@ -50,42 +62,119 @@ app.jinja_env.globals.update(
 
 
 # ==============================================================================
+# AUTENTIFIKÁCIA
+# ==============================================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Prihlásenie používateľa"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        remember = 'remember' in request.form
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and user.check_password(password):
+            login_user(user, remember=remember)
+            next_page = request.args.get('next')
+            flash(f'Vitajte, {user.name}!', 'success')
+            return redirect(next_page or url_for('dashboard'))
+        else:
+            flash('Nesprávny email alebo heslo.', 'error')
+    
+    return render_template('auth/login.html')
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Registrácia nového používateľa"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        company_name = request.form.get('company_name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        
+        # Validácia
+        if not name or not email or not password:
+            flash('Vyplňte všetky povinné polia.', 'error')
+            return render_template('auth/register.html')
+        
+        if password != password_confirm:
+            flash('Heslá sa nezhodujú.', 'error')
+            return render_template('auth/register.html')
+        
+        if len(password) < 6:
+            flash('Heslo musí mať aspoň 6 znakov.', 'error')
+            return render_template('auth/register.html')
+        
+        if User.query.filter_by(email=email).first():
+            flash('Používateľ s týmto emailom už existuje.', 'error')
+            return render_template('auth/register.html')
+        
+        # Vytvorenie používateľa
+        user = User(name=name, email=email, company_name=company_name)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        
+        # Prihlásime používateľa
+        login_user(user)
+        flash('Registrácia úspešná! Vitajte vo Fakturačnom systéme.', 'success')
+        return redirect(url_for('supplier_settings'))  # Presmerujeme na nastavenie firmy
+    
+    return render_template('auth/register.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Odhlásenie používateľa"""
+    logout_user()
+    flash('Boli ste úspešne odhlásený.', 'success')
+    return redirect(url_for('login'))
+
+
+# ==============================================================================
 # DASHBOARD
 # ==============================================================================
 
 @app.route('/')
+@login_required
 def dashboard():
-    """HlavnĂ˝ dashboard s prehÄľadom a analytics"""
-    supplier = Supplier.query.first()
+    """Hlavný dashboard s prehľadom a analytics"""
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
     
-    # VĹˇetky faktĂşry
-    invoices = Invoice.query.all()
+    # Všetky faktúry tohto používateľa
+    invoices = Invoice.query.filter_by(user_id=current_user.id).all()
     
-    # AktualizujemeÂ stavy po splatnosti
+    # Aktualizujeme stavy po splatnosti
     for inv in invoices:
         inv.check_overdue()
     db.session.commit()
     
-    # ZĂˇkladnĂ© Ĺˇtatistiky
+    # Základné štatistiky
     total_invoices = len(invoices)
     paid_invoices = [i for i in invoices if i.status == Invoice.STATUS_PAID]
     overdue_invoices = [i for i in invoices if i.is_overdue]
     issued_invoices = [i for i in invoices if i.status == Invoice.STATUS_ISSUED]
     
-    total_revenue = sum(i.total for i in paid_invoices)  # PrijatĂ© platby
-    total_pending = sum(i.total for i in issued_invoices)  # ÄŚakĂˇ na Ăşhradu
-    total_overdue = sum(i.total for i in overdue_invoices)  # Po splatnosti
+    total_revenue = sum(i.total for i in paid_invoices)
+    total_pending = sum(i.total for i in issued_invoices)
+    total_overdue = sum(i.total for i in overdue_invoices)
     
     # === ANALYTICS ===
-    # Celkovo fakturovanĂ© (vĹˇetky okrem stornovanĂ˝ch)
     active_invoices = [i for i in invoices if i.status != Invoice.STATUS_CANCELLED]
     total_invoiced = sum(i.total for i in active_invoices)
-    
-    # CelkovĂ˝ zisk (fakturovane - nĂˇkupnĂ© ceny)
     total_profit = sum(i.profit for i in paid_invoices)
     total_cost = sum(i.total_cost for i in paid_invoices)
-    
-    # PredpokladanĂ˝ prĂ­jem (faktĂşry v splatnosti)
     expected_income = total_pending
     
     # Top odberateľ
@@ -97,10 +186,10 @@ def dashboard():
     top_client_amount = 0
     if client_totals:
         top_client_id = max(client_totals, key=client_totals.get)
-        top_client = Client.query.get(top_client_id)
+        top_client = Client.query.filter_by(id=top_client_id, user_id=current_user.id).first()
         top_client_amount = client_totals[top_client_id]
     
-    # Mesačný prehľad (posledných 6 mesiacov)
+    # Mesačný prehľad
     monthly_data = []
     today = date.today()
     for i in range(5, -1, -1):
@@ -114,17 +203,10 @@ def dashboard():
             inv.profit for inv in paid_invoices 
             if inv.paid_date and inv.paid_date.month == month_start.month and inv.paid_date.year == month_start.year
         )
-        monthly_data.append({
-            'month': month_name,
-            'revenue': month_revenue,
-            'profit': month_profit
-        })
+        monthly_data.append({'month': month_name, 'revenue': month_revenue, 'profit': month_profit})
     
-    # PoslednĂˇ aktivita
-    recent_activity = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(10).all()
-    
-    # PoslednĂ© faktĂşry
-    recent_invoices = Invoice.query.order_by(Invoice.created_at.desc()).limit(10).all()
+    recent_activity = ActivityLog.query.filter_by(user_id=current_user.id).order_by(ActivityLog.created_at.desc()).limit(10).all()
+    recent_invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.created_at.desc()).limit(10).all()
     
     return render_template('dashboard.html',
         supplier=supplier,
@@ -135,7 +217,6 @@ def dashboard():
         total_revenue=total_revenue,
         total_pending=total_pending,
         total_overdue=total_overdue,
-        # Analytics
         total_invoiced=total_invoiced,
         total_profit=total_profit,
         total_cost=total_cost,
@@ -153,17 +234,20 @@ def dashboard():
 # ==============================================================================
 
 @app.route('/clients')
+@login_required
 def clients_list():
     """Zoznam klientov"""
-    clients = Client.query.order_by(Client.name).all()
+    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
     return render_template('clients.html', clients=clients)
 
 
 @app.route('/clients/add', methods=['GET', 'POST'])
+@login_required
 def client_add():
     """Pridanie nového klienta"""
     if request.method == 'POST':
         client = Client(
+            user_id=current_user.id,
             name=request.form['name'],
             contact_person=request.form.get('contact_person', ''),
             street=request.form['street'],
@@ -186,9 +270,10 @@ def client_add():
 
 
 @app.route('/clients/<int:client_id>/edit', methods=['GET', 'POST'])
+@login_required
 def client_edit(client_id):
-    """Úprava klienta"""
-    client = Client.query.get_or_404(client_id)
+    """Uprava klienta"""
+    client = Client.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
     
     if request.method == 'POST':
         client.name = request.form['name']
@@ -212,12 +297,14 @@ def client_edit(client_id):
 
 
 @app.route('/clients/<int:client_id>/delete', methods=['POST'])
+@login_required
 def client_delete(client_id):
     """Vymazanie klienta"""
-    client = Client.query.get_or_404(client_id)
+    client = Client.query.filter_by(id=client_id, user_id=current_user.id).first_or_404()
     
     # Kontrola či nemá faktúry
-    if client.invoices:
+    invoice_count = Invoice.query.filter_by(client_id=client_id, user_id=current_user.id).count()
+    if invoice_count > 0:
         flash(f'Klient "{client.name}" nemôže byť vymazaný, pretože má faktúry.', 'error')
         return redirect(url_for('clients_list'))
     
@@ -233,23 +320,23 @@ def client_delete(client_id):
 # ==============================================================================
 
 @app.route('/invoices')
+@login_required
 def invoices_list():
     """Zoznam faktúr"""
     status_filter = request.args.get('status', '')
     search_query = request.args.get('q', '')
     
-    query = Invoice.query
+    query = Invoice.query.filter_by(user_id=current_user.id)
     
     # Aktualizujeme stavy pred filtrovaním
-    all_invoices = Invoice.query.all()
+    all_invoices = Invoice.query.filter_by(user_id=current_user.id).all()
     for inv in all_invoices:
         inv.check_overdue()
     db.session.commit()
     
     # Filtre
     if status_filter == 'overdue':
-        # Filtrujeme faktúry po splatnosti
-        query = query.filter(Invoice.is_overdue == True)
+        query = query.filter(Invoice.status == Invoice.STATUS_OVERDUE)
     elif status_filter:
         query = query.filter_by(status=status_filter)
     
@@ -271,10 +358,11 @@ def invoices_list():
 
 
 @app.route('/invoices/add', methods=['GET', 'POST'])
+@login_required
 def invoice_add():
     """Vytvorenie novej faktúry"""
-    supplier = Supplier.query.first()
-    clients = Client.query.order_by(Client.name).all()
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
+    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
     
     if not supplier:
         flash('Najprv musíte nastaviť údaje dodávateľa.', 'error')
@@ -292,7 +380,7 @@ def invoice_add():
                 flash('Vyberte klienta.', 'error')
                 return redirect(url_for('invoice_add'))
             
-            client = Client.query.get(client_id)
+            client = Client.query.filter_by(id=client_id, user_id=current_user.id).first()
             if not client:
                 flash('Klient neexistuje.', 'error')
                 return redirect(url_for('invoice_add'))
@@ -302,6 +390,7 @@ def invoice_add():
             
             # Vytvoríme faktúru
             invoice = Invoice(
+                user_id=current_user.id,
                 invoice_number=invoice_number,
                 variable_symbol=invoice_number.replace('/', ''),
                 supplier_id=supplier.id,
@@ -362,6 +451,7 @@ def invoice_add():
             ActivityLog.log(
                 ActivityLog.ACTION_INVOICE_CREATED,
                 f'Faktúra {invoice.invoice_number} vytvorená pre {client.name}',
+                user_id=current_user.id,
                 invoice_id=invoice.id,
                 client_id=client.id,
                 extra_data={'total': invoice.total}
@@ -402,9 +492,10 @@ def invoice_add():
 
 
 @app.route('/invoices/<int:invoice_id>')
+@login_required
 def invoice_detail(invoice_id):
     """Detail faktúry"""
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     
     # Generujeme QR kód
     qr_code = None
@@ -428,9 +519,10 @@ def invoice_detail(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/pdf')
+@login_required
 def invoice_pdf(invoice_id):
     """Stiahnutie faktúry ako PDF"""
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     
     # Generujeme QR kód
     qr_code = None
@@ -485,15 +577,17 @@ def invoice_pdf(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/mark-paid', methods=['POST'])
+@login_required
 def invoice_mark_paid(invoice_id):
     """Označiť faktúru ako uhradenú"""
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     invoice.status = Invoice.STATUS_PAID
     invoice.paid_date = date.today()
     
     ActivityLog.log(
         ActivityLog.ACTION_INVOICE_PAID,
         f'Faktúra {invoice.invoice_number} označená ako uhradená',
+        user_id=current_user.id,
         invoice_id=invoice.id,
         client_id=invoice.client_id,
         extra_data={'total': invoice.total, 'paid_date': str(invoice.paid_date)}
@@ -505,14 +599,16 @@ def invoice_mark_paid(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/cancel', methods=['POST'])
+@login_required
 def invoice_cancel(invoice_id):
     """Stornovať faktúru"""
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     invoice.status = Invoice.STATUS_CANCELLED
     
     ActivityLog.log(
         ActivityLog.ACTION_INVOICE_CANCELLED,
         f'Faktúra {invoice.invoice_number} stornovaná',
+        user_id=current_user.id,
         invoice_id=invoice.id,
         client_id=invoice.client_id
     )
@@ -523,15 +619,17 @@ def invoice_cancel(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/delete', methods=['POST'])
+@login_required
 def invoice_delete(invoice_id):
     """Vymazať faktúru"""
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     number = invoice.invoice_number
     client_id = invoice.client_id
     
     ActivityLog.log(
         ActivityLog.ACTION_INVOICE_DELETED,
         f'Faktúra {number} vymazaná',
+        user_id=current_user.id,
         client_id=client_id
     )
     
@@ -542,11 +640,12 @@ def invoice_delete(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/edit', methods=['GET', 'POST'])
+@login_required
 def invoice_edit(invoice_id):
     """Editácia existujúcej faktúry"""
-    invoice = Invoice.query.get_or_404(invoice_id)
-    supplier = Supplier.query.first()
-    clients = Client.query.order_by(Client.name).all()
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
+    clients = Client.query.filter_by(user_id=current_user.id).order_by(Client.name).all()
     
     if request.method == 'POST':
         # Aktualizujeme základné údaje
@@ -592,6 +691,7 @@ def invoice_edit(invoice_id):
         ActivityLog.log(
             ActivityLog.ACTION_INVOICE_EDITED,
             f'Faktúra {invoice.invoice_number} upravená',
+            user_id=current_user.id,
             invoice_id=invoice.id,
             client_id=invoice.client_id,
             extra_data={'total': invoice.total}
@@ -611,10 +711,11 @@ def invoice_edit(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/clone', methods=['POST'])
+@login_required
 def invoice_clone(invoice_id):
     """Klonovanie faktúry - vytvorí novú faktúru s rovnakými údajmi"""
-    original = Invoice.query.get_or_404(invoice_id)
-    supplier = Supplier.query.first()
+    original = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
     
     # Generujeme nové číslo faktúry
     invoice_number = supplier.get_next_invoice_number()
@@ -624,6 +725,7 @@ def invoice_clone(invoice_id):
     new_invoice = Invoice(
         invoice_number=invoice_number,
         variable_symbol=invoice_number.replace('FV', '').replace('/', ''),
+        user_id=current_user.id,
         supplier_id=supplier.id,
         client_id=original.client_id,
         issue_date=today,
@@ -659,6 +761,7 @@ def invoice_clone(invoice_id):
     ActivityLog.log(
         ActivityLog.ACTION_INVOICE_CREATED,
         f'Faktúra {new_invoice.invoice_number} vytvorena klonovaním z {original.invoice_number}',
+        user_id=current_user.id,
         invoice_id=new_invoice.id,
         client_id=new_invoice.client_id,
         extra_data={'cloned_from': original.invoice_number}
@@ -670,9 +773,10 @@ def invoice_clone(invoice_id):
 
 
 @app.route('/invoices/<int:invoice_id>/internal-note', methods=['POST'])
+@login_required
 def invoice_internal_note(invoice_id):
     """Aktualizovať internú poznámku faktúry"""
-    invoice = Invoice.query.get_or_404(invoice_id)
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     invoice.internal_note = request.form.get('internal_note', '')
     db.session.commit()
     flash('Interná poznámka bola uložená.', 'success')
@@ -680,9 +784,10 @@ def invoice_internal_note(invoice_id):
 
 
 @app.route('/invoices/export/csv')
+@login_required
 def invoices_export_csv():
     """Export faktúr do CSV"""
-    invoices = Invoice.query.order_by(Invoice.created_at.desc()).all()
+    invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.created_at.desc()).all()
     
     output = io.StringIO()
     writer = csv.writer(output, delimiter=';')
@@ -728,9 +833,10 @@ def invoices_export_csv():
 # ==============================================================================
 
 @app.route('/settings', methods=['GET', 'POST'])
+@login_required
 def supplier_settings():
     """Nastavenia údajov dodávateľa"""
-    supplier = Supplier.query.first()
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
     
     if request.method == 'POST':
         if supplier:
@@ -754,6 +860,7 @@ def supplier_settings():
         else:
             # Vytvorenie nového
             supplier = Supplier(
+                user_id=current_user.id,
                 name=request.form['name'],
                 street=request.form['street'],
                 city=request.form['city'],
@@ -785,6 +892,7 @@ def supplier_settings():
 # ==============================================================================
 
 @app.route('/api/clients/create', methods=['POST'])
+@login_required
 def api_client_create():
     """
     API endpoint pre vytvorenie nového klienta cez AJAX.
@@ -797,6 +905,7 @@ def api_client_create():
             return jsonify({'success': False, 'error': 'Vyplňte všetky povinné polia'}), 400
         
         client = Client(
+            user_id=current_user.id,
             name=data.get('name', ''),
             contact_person=data.get('contact_person', ''),
             street=data.get('street', ''),
@@ -828,6 +937,7 @@ def api_client_create():
 
 
 @app.route('/api/rpo/lookup/<ico>')
+@login_required
 def rpo_lookup(ico):
     """
     API endpoint pre vyhľadanie firmy v RPO podľa IČO.
@@ -851,9 +961,10 @@ def rpo_lookup(ico):
 
 
 @app.route('/api/upload-stamp', methods=['POST'])
+@login_required
 def upload_stamp():
     """Nahrávanie pečiatky alebo podpisu"""
-    supplier = Supplier.query.first()
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
     if not supplier:
         return jsonify({'success': False, 'error': 'Najprv nastavťe údaje dodávateľa'}), 400
     
@@ -895,11 +1006,12 @@ def upload_stamp():
 
 
 @app.route('/api/remove-stamp', methods=['POST'])
+@login_required
 def remove_stamp():
-    """Odstránenie pečiatky alebo podpisu"""
-    supplier = Supplier.query.first()
+    """Odstranenie peciatky alebo podpisu"""
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
     if not supplier:
-        return jsonify({'success': False, 'error': 'Dodávateľ neexistuje'}), 400
+        return jsonify({'success': False, 'error': 'Dodavatel neexistuje'}), 400
     
     image_type = request.json.get('type', 'stamp')
     
