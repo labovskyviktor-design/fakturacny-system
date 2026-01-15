@@ -8,6 +8,8 @@ import csv
 from datetime import date, timedelta
 from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, Response, jsonify
+import logging
+import traceback
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from models import db, User, Supplier, Client, Invoice, InvoiceItem, ActivityLog, InvoiceView, RecurringInvoice
 from utils.company_lookup import lookup_company
@@ -39,6 +41,10 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fakturacny_system.db'
     
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
 
 # Inicializácia databázy
 db.init_app(app)
@@ -68,6 +74,41 @@ app.jinja_env.globals.update(
     get_status_color=get_status_color,
     generate_pay_by_square=generate_pay_by_square,
 )
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Global error handler pre 500 chyby"""
+    # Logovanie chyby
+    app.logger.error('Server Error: %s', error)
+    app.logger.error(traceback.format_exc())
+    
+    # Rollback databázovej session
+    try:
+        db.session.rollback()
+    except Exception as e:
+        app.logger.error(f'Rollback failed: {e}')
+        
+    return render_template('500.html'), 500
+
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handler pre všetky neočakávané výnimky"""
+    # pass through HTTP errors
+    if hasattr(e, "code"):
+        return e
+        
+    app.logger.error(f"Unhandled Exception: {e}")
+    app.logger.error(traceback.format_exc())
+    
+    try:
+        db.session.rollback()
+    except:
+        pass
+        
+    return render_template('500.html'), 500
+
 
 
 # ==============================================================================

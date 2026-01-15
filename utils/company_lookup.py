@@ -26,7 +26,6 @@ class CompanyLookup:
             'Accept-Language': 'sk-SK,sk;q=0.9'
         })
     
-    @cached(timeout=600, key_prefix='company_lookup')
     def lookup(self, ico: str) -> Optional[Dict[str, Any]]:
         """
         Vyhľadá firmu podľa IČO.
