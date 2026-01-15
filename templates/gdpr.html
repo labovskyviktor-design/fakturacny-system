@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Ochrana osobnych udajov (GDPR) - FakturaSK{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{{ url_for('dashboard') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors mb-4">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Spat na dashboard
+        </a>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Ochrana osobnych udajov (GDPR)</h1>
+        <p class="text-slate-500 mt-2">Posledna aktualizacia: 15. januar 2026</p>
+    </div>
+    
+    <!-- Content -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8 space-y-8">
+        
+        <!-- Info box -->
+        <div class="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+                <svg class="w-6 h-6 text-primary-600 dark:text-primary-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <div>
+                    <h3 class="font-semibold text-primary-900 dark:text-primary-100">Vase udaje su v bezpeci</h3>
+                    <p class="text-primary-700 dark:text-primary-300 text-sm mt-1">
+                        Ochrana vasich osobnych udajov je pre nas prioritou. Dodrzujeme vsetky poziadavky 
+                        nariadenia GDPR (General Data Protection Regulation).
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">1. Prevodca osobnych udajov</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Prevodzovatelom vasich osobnych udajov je:
+            </p>
+            <div class="mt-4 p-4 bg-slate-50 dark:bg-slate-700 rounded-xl">
+                <p class="text-slate-700 dark:text-slate-200 font-medium">Bc. Viktor Labovsky</p>
+                <p class="text-slate-600 dark:text-slate-300">Email: labovskyviktor@gmail.com</p>
+            </div>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">2. Ake udaje zhromazdujeme</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                V ramci poskytovania sluzby FakturaSK zhromazdujeme nasledujuce kategorie osobnych udajov:
+            </p>
+            
+            <div class="space-y-4">
+                <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2">Registracne udaje</h3>
+                    <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 text-sm space-y-1">
+                        <li>Meno a priezvisko</li>
+                        <li>E-mailova adresa</li>
+                        <li>Nazov firmy/spolocnosti</li>
+                        <li>Heslo (sifrovane)</li>
+                    </ul>
+                </div>
+                
+                <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2">Fakturacne udaje</h3>
+                    <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 text-sm space-y-1">
+                        <li>Obchodne meno a sidlo</li>
+                        <li>ICO, DIC, IC DPH</li>
+                        <li>Bankove udaje (IBAN)</li>
+                        <li>Kontaktne udaje</li>
+                    </ul>
+                </div>
+                
+                <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2">Udaje o klientoch</h3>
+                    <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 text-sm space-y-1">
+                        <li>Nazov a adresa klienta</li>
+                        <li>ICO, DIC klienta</li>
+                        <li>Kontaktne osoby</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">3. Ucel spracovania</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                Vase osobne udaje spracuvavame na nasledujuce ucely:
+            </p>
+            <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 space-y-2">
+                <li>Poskytovanie fakturacnej sluzby</li>
+                <li>Sprava vasho uzivatelskeho uctu</li>
+                <li>Komunikacia ohladom sluzby</li>
+                <li>Zlepsovanie kvality nasich sluzieb</li>
+                <li>Plnenie zakonnych povinnosti</li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">4. Pravny zaklad spracovania</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Osobne udaje spracuvavame na zaklade:
+            </p>
+            <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 mt-4 space-y-2">
+                <li><strong>Plnenie zmluvy</strong> - poskytovanie sluzby, ktoru ste si objednali</li>
+                <li><strong>Legitymny zaujem</strong> - zlepsovanie sluzieb a bezpecnost</li>
+                <li><strong>Zakonna povinnost</strong> - uctovne a danove ucely</li>
+                <li><strong>Suhlas</strong> - marketingova komunikacia (ak ste ho udelili)</li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">5. Doba uchovanaia udajov</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Vase osobne udaje uchavavame po dobu:
+            </p>
+            <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 mt-4 space-y-2">
+                <li>Po dobu trvania vasho uctu a poskytovania sluzby</li>
+                <li>Uctovne doklady - 10 rokov (zakonna povinnost)</li>
+                <li>Po zruseni uctu su udaje vymazane do 30 dni (okrem zakonnych poziadavok)</li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">6. Vase prava</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                Podla nariadenia GDPR mate nasledujuce prava:
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        Pravo na pristup
+                    </h3>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm">
+                        Mozete ziadat o informacie, ake udaje o vas spracuvavame.
+                    </p>
+                </div>
+                
+                <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Pravo na opravu
+                    </h3>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm">
+                        Mozete ziadat o opravu nespravnych alebo neuplnych udajov.
+                    </p>
+                </div>
+                
+                <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Pravo na vymazanie
+                    </h3>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm">
+                        Mozete ziadat o vymazanie vasich osobnych udajov.
+                    </p>
+                </div>
+                
+                <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-4">
+                    <h3 class="font-medium text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
+                        Pravo na prenositelnost
+                    </h3>
+                    <p class="text-slate-600 dark:text-slate-300 text-sm">
+                        Mozete ziadat o export vasich udajov v strojovo citatelnom formate.
+                    </p>
+                </div>
+            </div>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">7. Bezpecnost udajov</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Vase udaje chranime pomocou:
+            </p>
+            <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 mt-4 space-y-2">
+                <li>Sifrovania hesiel (bcrypt/Werkzeug)</li>
+                <li>HTTPS protokolu pre vsetku komunikaciu</li>
+                <li>Pravidelnych zaloh databazy</li>
+                <li>Pristupovych kontrol a autentifikacie</li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">8. Kontakt</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Ak mate otazky ohladom spracovania vasich osobnych udajov alebo chcete uplatnit 
+                svoje prava, kontaktujte nas:
+            </p>
+            <div class="mt-4 p-4 bg-slate-50 dark:bg-slate-700 rounded-xl">
+                <p class="text-slate-700 dark:text-slate-200 font-medium">Bc. Viktor Labovsky</p>
+                <p class="text-slate-600 dark:text-slate-300">Email: labovskyviktor@gmail.com</p>
+            </div>
+            <p class="text-slate-600 dark:text-slate-300 mt-4 text-sm">
+                Ak nie ste spokojny s nasou odpovedeou, mozete podat staznost na Urad na ochranu 
+                osobnych udajov Slovenskej republiky (www.dataprotection.gov.sk).
+            </p>
+        </section>
+        
+    </div>
+</div>
+{% endblock %}

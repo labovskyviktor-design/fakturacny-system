@@ -1,170 +1,227 @@
-# 📄 Fakturačný Systém
+<div align="center">
 
-Moderný fakturačný systém pre slovenské firmy s podporou PAY by square QR kódov, RPO integráciou a profesionálnym vzhľadom.
+# 💸 FakturaSK
+
+### Profesionalny fakturacny system pre slovenske firmy
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-fakturask.onrender.com-blue?style=for-the-badge)](https://fakturacny-system.onrender.com)
+[![Python](https://img.shields.io/badge/Python-3.8+-green?style=for-the-badge&logo=python)](https://python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.0-black?style=for-the-badge&logo=flask)](https://flask.palletsprojects.com)
+[![License](https://img.shields.io/badge/License-CC0--1.0-lightgrey?style=for-the-badge)](LICENSE)
+
+[Spustit Demo](#-demo) • [Funkcie](#-funkcie) • [Instalacia](#-instalacia) • [Dokumentacia](#-pouzitie)
+
+</div>
+
+---
+
+## 🎯 O projekte
+
+FakturaSK je moderny fakturacny system navrhnuty specialne pre slovenske firmy a zivnostnikov.
+Ponuka kompletnu spravu faktur, klientov a financnych prehladov s podporou slovenskych standardov
+vratane PAY by square QR kodov a RPO integracie.
+
+### 🌟 Hlavne vyhody
+
+- ✅ **PAY by square QR kody** - Kompatibilne so vsetkymi slovenskymi bankami
+- ✅ **RPO integracia** - Automaticke vyhladavanie firiem podla ICO
+- ✅ **Multi-user system** - Kazdy uzivatel ma vlastne data
+- ✅ **Demo rezim** - Vyskusajte bez registracie
+- ✅ **Dark mode** - Setrite oci pri nocnej praci
+- ✅ **Responzivny dizajn** - Funguje na mobile aj desktope
+
+---
+
+## 📸 Demo
+
+**Vyskusajte si system bez registracie!**
+
+👉 [**Spustit Demo**](https://fakturacny-system.onrender.com/demo)
+
+> ⚠️ V demo rezime sa data neukladaju a budu vymazane po odhlaseni.
+
+---
 
 ## ✨ Funkcie
 
-### 💼 Správa faktúr
-- Vytváranie, úprava a mazanie faktúr
-- Automatické generovanie čísel faktúr
-- Evidencia položiek s nákupnými a predajnými cenami
-- Výpočet DPH a celkovej sumy
-- Sledovanie stavu faktúr (vystavené, uhradené, po splatnosti, stornované)
-- Hromadné operácie (označiť ako uhradené, vymazať)
-- Export do CSV
+<table>
+<tr>
+<td width="50%">
 
-### 👥 Správa klientov
-- Evidencia klientov s kompletými údajmi
-- Automatické vyhľadávanie firiem v RPO podľa IČO
-- História fakturácie pre každého klienta
+### 💼 Spravy faktur
+- Vytvaranie, uprava a mazanie faktur
+- Automaticke generovanie cisiel
+- Polozky s nakupnymi a predajnymi cenami
+- Vypocet DPH a celkovej sumy
+- Sledovanie stavov (vystavene, uhradene, po splatnosti)
+- Export do CSV a PDF
 
-### 🏢 Nastavenia dodávateľa
-- Kompletné údaje o vašej firme
-- Nahrávanie pečiatky a podpisu
-- Bankové údaje pre platby
+### 👥 Sprava klientov
+- Kompletna evidencia klientov
+- Automaticke vyhladavanie v RPO
+- Historia fakturacie
 
-### 📊 Dashboard a analytika
-- Prehľad príjmov a ziskov
-- Grafy mesačného vývoja
+</td>
+<td width="50%">
+
+### 📊 Dashboard & Analytika
+- Prehlad prijmov a ziskov
+- Mesacne grafy vyvoja
 - Top odberatelia
-- Klikateľné štatistiky s filtrovaním
+- Klikatelne statistiky
 
-### 🎨 Moderný dizajn
-- Profesionálny vzhľad s Tailwind CSS
-- Plne funkčný dark mode
-- Responzívny dizajn pre mobily a tablety
-- Animácie a interaktívne prvky
+### 🎨 Dizajn
+- Tailwind CSS
+- Dark / Light mode
+- Responzivny layout
+- Moderne animacie
 
-### 💳 PAY by square
-- Automatické generovanie QR kódov pre platby
-- Integrácia s FreeBySquare API
-- Kompatibilné so slovenským bankovým systémom
+### 🔐 Bezpecnost
+- Multi-user autentifikacia
+- Hashovane hesla (Werkzeug)
+- GDPR kompatibilne
 
-## 🚀 Inštalácia
+</td>
+</tr>
+</table>
 
-### Požiadavky
+---
+
+## 🚀 Instalacia
+
+### Poziadavky
 - Python 3.8+
 - pip
 
-### Kroky
+### Rychly start
 
-1. **Klonujte repository**
 ```bash
+# 1. Klonujte repository
 git clone https://github.com/labovskyviktor-design/fakturacny-system.git
 cd fakturacny-system
-```
 
-2. **Vytvorte virtuálne prostredie**
-```bash
+# 2. Vytvorte virtualne prostredie
 python -m venv venv
-```
 
-3. **Aktivujte virtuálne prostredie**
-- Windows: `venv\Scripts\activate`
-- Linux/Mac: `source venv/bin/activate`
+# 3. Aktivujte prostredie
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
 
-4. **Nainštalujte závislosti**
-```bash
+# 4. Nainstalujte zavislosti
 pip install -r requirements.txt
-```
 
-5. **Inicializujte databázu**
-```bash
-python init_data.py
-```
-
-6. **Spustite aplikáciu**
-```bash
+# 5. Spustite aplikaciu
 python app.py
 ```
 
-7. **Otvorte prehliadač**
-Prejdite na `http://localhost:5000`
+👉 Otvorte prehliadac na `http://localhost:5000`
 
-## 📦 Závislosti
+---
 
-- Flask - Web framework
-- Flask-SQLAlchemy - ORM pre databázu
-- requests - HTTP knižnica pre API volania
-- qrcode - Generovanie QR kódov
-- Pillow - Práca s obrázkami
-- WeasyPrint (voliteľné) - Generovanie PDF
+## 📦 Zavislosti
 
-## 🗄️ Štruktúra projektu
+| Balicek | Pouzitie |
+|---------|----------|
+| Flask | Web framework |
+| Flask-SQLAlchemy | ORM pre databazu |
+| Flask-Login | Autentifikacia |
+| requests | HTTP klient pre API |
+| qrcode | Generovanie QR kodov |
+| Pillow | Praca s obrazkami |
+| Werkzeug | Bezpecnost hesiel |
+
+---
+
+## 📁 Struktura projektu
 
 ```
 fakturacny_system/
-├── app.py                 # Hlavná Flask aplikácia
-├── models.py              # Databázové modely
-├── init_data.py          # Inicializačný script
-├── templates/            # HTML šablóny
-│   ├── base.html
-│   ├── dashboard.html
-│   ├── invoices.html
-│   ├── invoice_form.html
-│   ├── invoice_detail.html
-│   ├── invoice_pdf.html
-│   ├── clients.html
-│   └── settings.html
-├── utils/                # Pomocné moduly
-│   ├── helpers.py
-│   ├── pay_by_square.py
-│   ├── company_lookup.py
-│   └── sk_companies_db.py
-└── fakturacny_system.db # SQLite databáza
+├── app.py                 # Hlavna Flask aplikacia
+├── models.py              # Databazove modely
+├── templates/             # HTML sablony
+│   ├── auth/              # Login, Register
+│   ├── base.html          # Zakladny layout
+│   ├── dashboard.html     # Hlavny prehlad
+│   ├── invoices.html      # Zoznam faktur
+│   ├── invoice_form.html  # Formular faktury
+│   ├── clients.html       # Sprava klientov
+│   ├── settings.html      # Nastavenia
+│   ├── terms.html         # Podmienky pouzivania
+│   └── gdpr.html          # GDPR
+├── utils/                 # Pomocne moduly
+│   ├── helpers.py         # Pomocne funkcie
+│   ├── pay_by_square.py   # PAY by square
+│   └── company_lookup.py  # RPO vyhladavanie
+├── requirements.txt       # Zavislosti
+└── render.yaml            # Render.com konfiguracia
 ```
 
-## 🔧 Konfigurácia
+---
 
-### Dodávateľ
-Pri prvom spustení prejdite do **Nastavenia** a vyplňte údaje o vašej firme:
-- Názov, adresa, IČO, DIČ
-- Bankové údaje (IBAN, SWIFT)
-- Email, telefón, web
-- Prefix faktúr
+## 📱 Pouzitie
 
-### Klienti
-Pridajte klientov cez **Klienti → Nový klient**
-- Použite tlačidlo "Overiť RPO" pre automatické vyplnenie údajov podľa IČO
+| Akcia | Postup |
+|-------|--------|
+| Nova faktura | Faktury → Nova faktura |
+| Uprava faktury | Kliknite na cislo faktury |
+| Oznacit ako uhradene | Detail faktury → Oznacit ako uhradene |
+| Export | Faktury → Export CSV |
+| PDF stiahnutie | Detail faktury → Stiahnut PDF |
 
-## 📱 Použitie
+---
 
-1. **Vytvorenie faktúry**: Faktúry → Nová faktúra
-2. **Úprava faktúry**: Kliknite na číslo faktúry
-3. **Označenie ako uhradené**: Detail faktúry → Označiť ako uhradené
-4. **Export**: Faktúry → Export CSV
-5. **PDF stiahnutie**: Detail faktúry → Stiahnuť PDF
+## ☁️ Deployment
 
-## 🌙 Dark Mode
+### Render.com (Odporucane)
 
-Systém automaticky detekuje preferovaný režim z vášho operačného systému.
-Pre manuálne prepnutie kliknite na ikonu mesiaca/slnka v navigácii.
+1. Fork tohto repository
+2. Prihlaste sa na [Render.com](https://render.com)
+3. New → Web Service → Connect repository
+4. Render automaticky detekuje konfiguraciu z `render.yaml`
 
-## 📄 Licencia
+### Ine platformy
 
-CC0-1.0 License - Verejná doména
+- **Railway.app** - Jednoduche, free tier
+- **Heroku** - Klasicka volba
+- **PythonAnywhere** - Specialne pre Python
+
+> ⚠️ Nikdy nedeployujte na GitHub Pages - Flask aplikacie vyzaduju server!
+
+---
+
+## 📄 Pravne
+
+- [Podmienky pouzivania](/terms)
+- [Ochrana osobnych udajov (GDPR)](/gdpr)
+
+---
 
 ## 👨‍💻 Autor
 
-Viktor Labovský - [GitHub](https://github.com/labovskyviktor-design)
+<div align="center">
 
-## 🤝 Prispievanie
+**Bc. Viktor Labovsky**
 
-Contributions, issues a feature requests sú vítané!
+[![Portfolio](https://img.shields.io/badge/Portfolio-labovskyviktor--design.github.io-blue?style=flat-square)](https://labovskyviktor-design.github.io/portfolko/)
+[![GitHub](https://img.shields.io/badge/GitHub-labovskyviktor--design-black?style=flat-square&logo=github)](https://github.com/labovskyviktor-design)
+[![Email](https://img.shields.io/badge/Email-labovskyviktor%40gmail.com-red?style=flat-square&logo=gmail)](mailto:labovskyviktor@gmail.com)
 
-## ⚠️ Poznámky
+</div>
 
-- Tento systém je určený pre malé a stredné firmy na Slovensku
-- Pre produkčné nasadenie odporúčame PostgreSQL namiesto SQLite
-- Pravidelne zálohujte databázu
-- Pre deployment odporúčame služby ako Heroku, Railway alebo Render
+---
 
-## 🚀 Deployment
+## 📃 Licencia
 
-Pre nasadenie do produkcie odporúčame:
-- **Railway.app** - Najjednoduchšie, free tier dostupný
-- **Render.com** - Dobré pre Python aplikácie
-- **Heroku** - Klasická voľba
-- **PythonAnywhere** - Špeciálne pre Python
+Tento projekt je licencovany pod **CC0-1.0 License** - pozri [LICENSE](LICENSE) pre detaily.
 
-Nikdy nedeployujte na GitHub Pages - Flask aplikácie vyžadujú server!
+---
+
+<div align="center">
+
+**❤️ Made with love in Slovakia**
+
+© 2026 Bc. Viktor Labovsky. Vsetky prava vyhradene.
+
+</div>

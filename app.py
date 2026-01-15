@@ -133,13 +133,109 @@ def register():
     return render_template('auth/register.html')
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
-    """Odhlásenie používateľa"""
-    logout_user()
-    flash('Boli ste úspešne odhlásený.', 'success')
+    """Odhlasenie pouzivatela"""
+    # Ak je to demo uzivatel, vymazeme jeho data
+    if current_user.email and current_user.email.startswith('demo_'):
+        demo_user_id = current_user.id
+        logout_user()
+        # Vymazeme demo data
+        try:
+            Invoice.query.filter_by(user_id=demo_user_id).delete()
+            Client.query.filter_by(user_id=demo_user_id).delete()
+            Supplier.query.filter_by(user_id=demo_user_id).delete()
+            ActivityLog.query.filter_by(user_id=demo_user_id).delete()
+            User.query.filter_by(id=demo_user_id).delete()
+            db.session.commit()
+        except:
+            db.session.rollback()
+        flash('Demo session ukoncena. Data boli vymazane.', 'success')
+    else:
+        logout_user()
+        flash('Boli ste uspesne odhlaseny.', 'success')
     return redirect(url_for('login'))
+
+
+@app.route('/demo')
+def demo_login():
+    """Demo prihlasenie bez registracie"""
+    import uuid
+    
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    # Vytvorime jedinecneho demo uzivatela
+    demo_id = str(uuid.uuid4())[:8]
+    demo_email = f'demo_{demo_id}@fakturask.demo'
+    
+    # Vytvorime demo uzivatela
+    demo_user = User(
+        name='Demo Pouzivatel',
+        email=demo_email,
+        company_name='Demo Firma s.r.o.'
+    )
+    demo_user.set_password(demo_id)  # Nahodne heslo
+    db.session.add(demo_user)
+    db.session.commit()
+    
+    # Vytvorime demo dodavatela
+    demo_supplier = Supplier(
+        user_id=demo_user.id,
+        name='Demo Firma s.r.o.',
+        street='Hlavna 123',
+        city='Bratislava',
+        zip_code='81101',
+        country='Slovenska republika',
+        ico='12345678',
+        dic='2012345678',
+        is_vat_payer=True,
+        ic_dph='SK2012345678',
+        bank_name='Demo Banka',
+        iban='SK0000000000000000000000',
+        email='demo@firma.sk',
+        phone='+421 900 123 456',
+        invoice_prefix='DEMO'
+    )
+    db.session.add(demo_supplier)
+    
+    # Vytvorime demo klienta
+    demo_client = Client(
+        user_id=demo_user.id,
+        name='Ukazkovy Klient s.r.o.',
+        street='Testovacia 456',
+        city='Kosice',
+        zip_code='04001',
+        country='Slovenska republika',
+        ico='87654321',
+        dic='2087654321',
+        email='klient@ukazka.sk'
+    )
+    db.session.add(demo_client)
+    db.session.commit()
+    
+    # Prihlasime demo uzivatela
+    login_user(demo_user)
+    
+    flash('Vitajte v demo rezime! Mozete si vyskusat vsetky funkcie. Data sa neukladaju a budu vymazane po odhlaseni.', 'warning')
+    return redirect(url_for('dashboard'))
+
+
+# ==============================================================================
+# STATICKE STRANKY
+# ==============================================================================
+
+@app.route('/terms')
+def terms():
+    """Podmienky pouzivania"""
+    return render_template('terms.html')
+
+
+@app.route('/gdpr')
+def gdpr():
+    """Ochrana osobnych udajov (GDPR)"""
+    return render_template('gdpr.html')
 
 
 # ==============================================================================

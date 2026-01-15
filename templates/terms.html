@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Podmienky pouzivania - FakturaSK{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <a href="{{ url_for('dashboard') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-primary-600 transition-colors mb-4">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Spat na dashboard
+        </a>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Podmienky pouzivania</h1>
+        <p class="text-slate-500 mt-2">Posledna aktualizacia: 15. januar 2026</p>
+    </div>
+    
+    <!-- Content -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8 space-y-8">
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">1. Vseobecne ustanovenia</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Tieto podmienky pouzivania (dalej len "Podmienky") upravuju prava a povinnosti medzi poskytovatelom 
+                sluzby FakturaSK (dalej len "Poskytovatel") a uzivatelom tejto sluzby (dalej len "Uzivatel"). 
+                Pouzitim sluzby FakturaSK vyjadrujete suhlas s tymito Podmienkami.
+            </p>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">2. Popis sluzby</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                FakturaSK je online fakturacny system urceny pre podnikatelov a firmy na Slovensku. 
+                Sluzi na vytvaranie, spravu a evidenciu faktur, klientov a financnych prehladov.
+            </p>
+            <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 mt-4 space-y-2">
+                <li>Vytvaranie a sprava faktur</li>
+                <li>Evidencia klientov a dodavatelov</li>
+                <li>Generovanie PDF dokumentov</li>
+                <li>PAY by square QR kody pre platby</li>
+                <li>Statistiky a prehladove dashboardy</li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">3. Registracia a ucet</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Pre pouzivanie sluzby je potrebna registracia. Uzivatel je povinny poskytnnut pravdive a aktualne 
+                udaje. Kazdy uzivatel je zodpovedny za bezpecnost svojho hesla a prihlasovacich udajov.
+            </p>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">4. Prava a povinnosti uzivatela</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed mb-4">Uzivatel sa zavazuje:</p>
+            <ul class="list-disc list-inside text-slate-600 dark:text-slate-300 space-y-2">
+                <li>Pouzivat sluzbu v sulade so zakonmi Slovenskej republiky</li>
+                <li>Nezneuzivat sluzbu na nezakonne ucely</li>
+                <li>Neporusovat prava tretich stran</li>
+                <li>Chrannit svoje prihlasovacie udaje</li>
+                <li>Neposkytovat pristup k uctu tretim osobam bez suhlasu</li>
+            </ul>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">5. Zodpovednost</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Poskytovatel nezodpoveda za skody vzniknute nespravnym pouzivanim sluzby, vypadkom 
+                sluzby alebo stratou dat. Uzivatel je zodpovedny za spravnost udajov uvedenych vo fakturach 
+                a za ich suladnost s daknovou a uctovnou legislativou.
+            </p>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">6. Ochrana udajov</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Spracovanie osobnych udajov sa riadi nasimi 
+                <a href="{{ url_for('gdpr') }}" class="text-primary-600 hover:text-primary-700 underline">
+                    zasadami ochrany osobnych udajov (GDPR)
+                </a>.
+            </p>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">7. Zmeny podmienok</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                Poskytovatel si vyhradzuje pravo zmenit tieto Podmienky kedykolvek. O zmenach bude uzivatel 
+                informovany prostrednictvom e-mailu alebo oznamenia v aplikacii. Pokracovanim v pouzivani 
+                sluzby po zmene Podmienok uzivatel vyjadruje suhlas s novymi Podmienkami.
+            </p>
+        </section>
+        
+        <section>
+            <h2 class="text-xl font-semibold text-slate-900 dark:text-white mb-4">8. Kontakt</h2>
+            <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                V pripade otazok alebo pripomienok nas kontaktujte na:
+            </p>
+            <div class="mt-4 p-4 bg-slate-50 dark:bg-slate-700 rounded-xl">
+                <p class="text-slate-700 dark:text-slate-200 font-medium">Bc. Viktor Labovsky</p>
+                <p class="text-slate-600 dark:text-slate-300">Email: labovskyviktor@gmail.com</p>
+                <p class="text-slate-600 dark:text-slate-300">
+                    Web: <a href="https://labovskyviktor-design.github.io/portfolko/" target="_blank" 
+                           class="text-primary-600 hover:underline">labovskyviktor-design.github.io</a>
+                </p>
+            </div>
+        </section>
+        
+    </div>
+</div>
+{% endblock %}

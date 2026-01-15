@@ -8,6 +8,9 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -243,7 +246,7 @@
                 
                 <!-- Dark mode toggle -->
                 <button onclick="toggleDarkMode()" 
-                        class="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200 mr-2"
+                        class="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200"
                         title="Prepnúť tmavý/svetlý režim">
                     <svg class="w-5 h-5 dark-toggle dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
@@ -253,19 +256,80 @@
                     </svg>
                 </button>
                 
-                <!-- Rýchla akcia -->
+                <!-- User menu -->
+                {% if current_user.is_authenticated %}
+                <div class="relative ml-2" x-data="{ open: false }">
+                    <button @click="open = !open" 
+                            class="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-semibold text-sm">
+                            {{ current_user.name[0]|upper if current_user.name else current_user.email[0]|upper }}
+                        </div>
+                        <span class="hidden md:block text-sm font-medium">{{ current_user.name or current_user.email }}</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Dropdown -->
+                    <div x-show="open" 
+                         @click.away="open = false"
+                         x-cloak
+                         class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-xl border border-slate-200 dark:border-slate-700 py-2 z-50">
+                        <div class="px-4 py-2 border-b border-slate-200 dark:border-slate-700">
+                            <p class="text-sm font-medium text-slate-900 dark:text-white">{{ current_user.name or 'Pouzivatel' }}</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ current_user.email }}</p>
+                        </div>
+                        <a href="{{ url_for('register') }}" 
+                           class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                            </svg>
+                            Pridat novy ucet
+                        </a>
+                        <form action="{{ url_for('logout') }}" method="POST" class="m-0">
+                            <button type="submit" 
+                                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                </svg>
+                                Odhlasit sa
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Rychla akcia -->
                 <a href="{{ url_for('invoice_add') }}" 
-                   class="bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-500 hover:to-accent-500 px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-primary-500/30 hover:scale-105">
+                   class="ml-2 bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-500 hover:to-accent-500 px-5 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-primary-500/30 hover:scale-105">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    <span>Nová faktúra</span>
+                    <span>Nova faktura</span>
                 </a>
             </div>
         </div>
     </nav>
     
-    <!-- Flash správy -->
+    <!-- Demo mode banner -->
+    {% if current_user.is_authenticated and current_user.email and current_user.email.startswith('demo_') %}
+    <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+        <div class="max-w-7xl mx-auto px-4 py-2">
+            <div class="flex items-center justify-center gap-3 text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <span class="font-medium">Demo rezim</span>
+                <span class="opacity-90">- Data sa neukladaju a budu vymazane po odhlaseni.</span>
+                <a href="{{ url_for('register') }}" class="ml-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors">
+                    Zaregistrovat sa
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Flash spravy -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="max-w-7xl mx-auto px-4 mt-4">
@@ -292,31 +356,66 @@
         {% block content %}{% endblock %}
     </main>
     
-    <!-- Päta -->
-    <footer class="bg-gradient-dark glass-dark text-slate-400 py-6 mt-auto">
+    <!-- Pata -->
+    <footer class="bg-gradient-dark glass-dark text-slate-400 py-8 mt-auto">
         <div class="max-w-7xl mx-auto px-4">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <!-- Hlavny riadok -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6 pb-6 border-b border-slate-700">
                 <div class="flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </div>
-                    <span class="text-sm font-medium text-slate-300">Faktura<span class="text-primary-400">SK</span></span>
+                    <div>
+                        <span class="text-lg font-bold text-slate-300">Faktura<span class="text-primary-400">SK</span></span>
+                        <p class="text-xs text-slate-500">Profesionalny fakturacny system</p>
+                    </div>
                 </div>
-                <p class="text-sm text-slate-500">
-                    &copy; 2024 - Profesionálny fakturačný systém pre slovenské firmy
-                </p>
-                <div class="flex items-center gap-4 text-xs text-slate-500">
-                    <span>Verzia 2.0</span>
-                    <span>•</span>
-                    <span class="flex items-center gap-1">
+                
+                <!-- Socialne siete -->
+                <div class="flex items-center gap-4">
+                    <a href="https://labovskyviktor-design.github.io/portfolko/" target="_blank" 
+                       class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors" title="Portfolio">
+                        <svg class="w-5 h-5 text-slate-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                        </svg>
+                    </a>
+                    <a href="https://github.com/labovskyviktor-design" target="_blank" 
+                       class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors" title="GitHub">
+                        <svg class="w-5 h-5 text-slate-400 hover:text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                        </svg>
+                    </a>
+                </div>
+                
+                <div class="flex items-center gap-4 text-sm">
+                    <span class="text-slate-500">Verzia 2.0</span>
+                    <span class="text-slate-600">|</span>
+                    <span class="flex items-center gap-1 text-slate-500">
                         Made with 
                         <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                         </svg>
                         in Slovakia
                     </span>
+                </div>
+            </div>
+            
+            <!-- Spodny riadok -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 pt-6">
+                <p class="text-sm text-slate-500">
+                    &copy; 2026 <span class="font-medium text-slate-400">Bc. Viktor Labovsky</span>. Vsetky prava vyhradene.
+                </p>
+                
+                <!-- Odkazy -->
+                <div class="flex items-center gap-6 text-sm">
+                    <a href="{{ url_for('terms') }}" class="text-slate-500 hover:text-primary-400 transition-colors">
+                        Podmienky pouzivania
+                    </a>
+                    <a href="{{ url_for('gdpr') }}" class="text-slate-500 hover:text-primary-400 transition-colors">
+                        Ochrana osobnych udajov (GDPR)
+                    </a>
                 </div>
             </div>
         </div>
