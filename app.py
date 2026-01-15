@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, Response, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User, Supplier, Client, Invoice, InvoiceItem, ActivityLog
+from models import db, User, Supplier, Client, Invoice, InvoiceItem, ActivityLog, InvoiceView, RecurringInvoice
 from utils.company_lookup import lookup_company
 from utils.pay_by_square import generate_qr_code_base64, generate_sepa_qr
 import base64
@@ -1122,7 +1122,258 @@ def remove_stamp():
 
 
 # ==============================================================================
-# SPUSTENIE APLIKÁCIE
+# KLIENTSKA ZONA - PUBLIC LINKS
+# ==============================================================================
+
+@app.route('/invoice/view/<token>')
+def public_invoice_view(token):
+    """Verejna stranka faktury pre klienta - bez prihlasenia"""
+    from datetime import datetime
+    
+    invoice = Invoice.query.filter_by(public_token=token).first_or_404()
+    
+    # Zaznamenaj zobrazenie
+    invoice.view_count = (invoice.view_count or 0) + 1
+    invoice.last_viewed_at = datetime.utcnow()
+    if not invoice.first_viewed_at:
+        invoice.first_viewed_at = datetime.utcnow()
+    
+    # Uloz detailny zaznam
+    view_record = InvoiceView(
+        invoice_id=invoice.id,
+        ip_address=request.remote_addr,
+        user_agent=request.user_agent.string[:500] if request.user_agent else None
+    )
+    db.session.add(view_record)
+    db.session.commit()
+    
+    # Generuj QR kod
+    qr_code = None
+    if invoice.payment_method == 'prevod' and invoice.supplier.iban:
+        try:
+            qr_code = generate_qr_code_base64(
+                amount=invoice.total,
+                iban=invoice.supplier.iban,
+                swift=invoice.supplier.swift or '',
+                variable_symbol=invoice.variable_symbol,
+                beneficiary_name=invoice.supplier.name,
+                due_date=invoice.due_date.strftime('%Y%m%d')
+            )
+        except:
+            pass
+    
+    return render_template('invoice_public.html', invoice=invoice, qr_code=qr_code)
+
+
+@app.route('/invoices/<int:invoice_id>/generate-link', methods=['POST'])
+@login_required
+def invoice_generate_link(invoice_id):
+    """Vygeneruje verejny link pre fakturu"""
+    import secrets
+    
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    
+    if not invoice.public_token:
+        invoice.public_token = secrets.token_urlsafe(32)
+        db.session.commit()
+    
+    public_url = url_for('public_invoice_view', token=invoice.public_token, _external=True)
+    
+    return jsonify({
+        'success': True,
+        'public_url': public_url,
+        'token': invoice.public_token
+    })
+
+
+# ==============================================================================
+# DANOVY KALENDAR
+# ==============================================================================
+
+@app.route('/tax-calendar')
+@login_required
+def tax_calendar():
+    """Danovy kalendar SR"""
+    return render_template('tax_calendar.html')
+
+
+# ==============================================================================
+# EXPORTY PRE UCTOVNICKU
+# ==============================================================================
+
+@app.route('/invoices/export/excel')
+@login_required
+def invoices_export_excel():
+    """Export faktur do Excel (.xlsx)"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    except ImportError:
+        # Ak nie je openpyxl, pouzijeme CSV format s .xls priponou
+        flash('Pre Excel export nainstalujte openpyxl: pip install openpyxl', 'warning')
+        return redirect(url_for('invoices_export_csv'))
+    
+    invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.issue_date.desc()).all()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Faktury"
+    
+    # Styling
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Hlavicka
+    headers = ['Cislo faktury', 'Var. symbol', 'Klient', 'ICO', 'Datum vystavenia', 
+               'Datum splatnosti', 'Datum uhrady', 'Zaklad DPH', 'DPH', 'Celkom', 'Stav']
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        cell.border = border
+    
+    # Data
+    for row, inv in enumerate(invoices, 2):
+        data = [
+            inv.invoice_number,
+            inv.variable_symbol,
+            inv.client.name,
+            inv.client.ico or '',
+            inv.issue_date.strftime('%d.%m.%Y'),
+            inv.due_date.strftime('%d.%m.%Y'),
+            inv.paid_date.strftime('%d.%m.%Y') if inv.paid_date else '',
+            inv.subtotal,
+            inv.vat_amount,
+            inv.total,
+            get_status_label(inv.status)
+        ]
+        for col, value in enumerate(data, 1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.border = border
+            if col in [8, 9, 10]:  # Cisla
+                cell.number_format = '#,##0.00'
+                cell.alignment = Alignment(horizontal='right')
+    
+    # Sirka stlpcov
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 30
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 15
+    ws.column_dimensions['H'].width = 12
+    ws.column_dimensions['I'].width = 12
+    ws.column_dimensions['J'].width = 12
+    ws.column_dimensions['K'].width = 15
+    
+    # Ulozenie do pamati
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return Response(
+        output.getvalue(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={
+            'Content-Disposition': f'attachment; filename=faktury_export_{date.today().strftime("%Y%m%d")}.xlsx'
+        }
+    )
+
+
+@app.route('/invoices/export/xml')
+@login_required
+def invoices_export_xml():
+    """Export faktur do XML (format pre uctovne systemy)"""
+    invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.issue_date.desc()).all()
+    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
+    
+    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_content += '<Faktury xmlns="http://fakturask.sk/export" verzia="1.0">\n'
+    xml_content += f'  <Export datum="{date.today().isoformat()}" />\n'
+    
+    if supplier:
+        xml_content += '  <Dodavatel>\n'
+        xml_content += f'    <Nazov>{supplier.name}</Nazov>\n'
+        xml_content += f'    <ICO>{supplier.ico}</ICO>\n'
+        xml_content += f'    <DIC>{supplier.dic or ""}</DIC>\n'
+        xml_content += f'    <ICDPH>{supplier.ic_dph or ""}</ICDPH>\n'
+        xml_content += f'    <Adresa>\n'
+        xml_content += f'      <Ulica>{supplier.street}</Ulica>\n'
+        xml_content += f'      <Mesto>{supplier.city}</Mesto>\n'
+        xml_content += f'      <PSC>{supplier.zip_code}</PSC>\n'
+        xml_content += f'    </Adresa>\n'
+        xml_content += f'    <IBAN>{supplier.iban or ""}</IBAN>\n'
+        xml_content += '  </Dodavatel>\n'
+    
+    xml_content += '  <ZoznamFaktur>\n'
+    
+    for inv in invoices:
+        xml_content += f'    <Faktura id="{inv.id}">\n'
+        xml_content += f'      <CisloFaktury>{inv.invoice_number}</CisloFaktury>\n'
+        xml_content += f'      <VariabilnySymbol>{inv.variable_symbol}</VariabilnySymbol>\n'
+        xml_content += f'      <DatumVystavenia>{inv.issue_date.isoformat()}</DatumVystavenia>\n'
+        xml_content += f'      <DatumDodania>{inv.delivery_date.isoformat()}</DatumDodania>\n'
+        xml_content += f'      <DatumSplatnosti>{inv.due_date.isoformat()}</DatumSplatnosti>\n'
+        if inv.paid_date:
+            xml_content += f'      <DatumUhrady>{inv.paid_date.isoformat()}</DatumUhrady>\n'
+        xml_content += f'      <Stav>{inv.status}</Stav>\n'
+        xml_content += f'      <FormaUhrady>{inv.payment_method}</FormaUhrady>\n'
+        
+        xml_content += f'      <Odberatel>\n'
+        xml_content += f'        <Nazov>{inv.client.name}</Nazov>\n'
+        xml_content += f'        <ICO>{inv.client.ico or ""}</ICO>\n'
+        xml_content += f'        <DIC>{inv.client.dic or ""}</DIC>\n'
+        xml_content += f'        <Adresa>\n'
+        xml_content += f'          <Ulica>{inv.client.street}</Ulica>\n'
+        xml_content += f'          <Mesto>{inv.client.city}</Mesto>\n'
+        xml_content += f'          <PSC>{inv.client.zip_code}</PSC>\n'
+        xml_content += f'        </Adresa>\n'
+        xml_content += f'      </Odberatel>\n'
+        
+        xml_content += f'      <Polozky>\n'
+        for item in inv.items:
+            xml_content += f'        <Polozka>\n'
+            xml_content += f'          <Popis>{item.description}</Popis>\n'
+            xml_content += f'          <Mnozstvo>{item.quantity}</Mnozstvo>\n'
+            xml_content += f'          <Jednotka>{item.unit}</Jednotka>\n'
+            xml_content += f'          <JednotkovaCena>{item.unit_price:.2f}</JednotkovaCena>\n'
+            xml_content += f'          <Spolu>{item.total:.2f}</Spolu>\n'
+            xml_content += f'        </Polozka>\n'
+        xml_content += f'      </Polozky>\n'
+        
+        xml_content += f'      <Sumy>\n'
+        xml_content += f'        <ZakladDane>{inv.subtotal:.2f}</ZakladDane>\n'
+        xml_content += f'        <SadzbaDPH>{inv.vat_rate:.0f}</SadzbaDPH>\n'
+        xml_content += f'        <DPH>{inv.vat_amount:.2f}</DPH>\n'
+        xml_content += f'        <Celkom>{inv.total:.2f}</Celkom>\n'
+        xml_content += f'      </Sumy>\n'
+        
+        xml_content += f'    </Faktura>\n'
+    
+    xml_content += '  </ZoznamFaktur>\n'
+    xml_content += '</Faktury>'
+    
+    return Response(
+        xml_content,
+        mimetype='application/xml',
+        headers={
+            'Content-Disposition': f'attachment; filename=faktury_export_{date.today().strftime("%Y%m%d")}.xml',
+            'Content-Type': 'application/xml; charset=utf-8'
+        }
+    )
+
+
+# ==============================================================================
+# SPUSTENIE APLIKACIE
 # ==============================================================================
 
 if __name__ == '__main__':

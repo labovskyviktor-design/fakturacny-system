@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faktura {{ invoice.invoice_number }} - {{ invoice.supplier.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-6 no-print">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold">Faktura {{ invoice.invoice_number }}</h1>
+                    <p class="text-indigo-200">{{ invoice.supplier.name }}</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="window.print()" 
+                            class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        Tlacit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Invoice Content -->
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+            
+            <!-- Status Banner -->
+            {% if invoice.status == 'paid' %}
+            <div class="bg-green-500 text-white px-6 py-3 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="font-medium">Faktura bola uhradena</span>
+            </div>
+            {% elif invoice.is_overdue %}
+            <div class="bg-red-500 text-white px-6 py-3 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="font-medium">Faktura je po splatnosti!</span>
+            </div>
+            {% endif %}
+            
+            <!-- Header Info -->
+            <div class="p-8 border-b">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Dodavatel -->
+                    <div>
+                        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Dodavatel</h2>
+                        <div class="text-gray-900">
+                            <p class="text-xl font-bold">{{ invoice.supplier.name }}</p>
+                            <p>{{ invoice.supplier.street }}</p>
+                            <p>{{ invoice.supplier.zip_code }} {{ invoice.supplier.city }}</p>
+                            <p class="mt-2 text-sm">
+                                <span class="text-gray-500">ICO:</span> {{ invoice.supplier.ico }}<br>
+                                {% if invoice.supplier.dic %}
+                                <span class="text-gray-500">DIC:</span> {{ invoice.supplier.dic }}<br>
+                                {% endif %}
+                                {% if invoice.supplier.ic_dph %}
+                                <span class="text-gray-500">IC DPH:</span> {{ invoice.supplier.ic_dph }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Odberatel -->
+                    <div>
+                        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Odberatel</h2>
+                        <div class="text-gray-900">
+                            <p class="text-xl font-bold">{{ invoice.client.name }}</p>
+                            <p>{{ invoice.client.street }}</p>
+                            <p>{{ invoice.client.zip_code }} {{ invoice.client.city }}</p>
+                            {% if invoice.client.ico %}
+                            <p class="mt-2 text-sm">
+                                <span class="text-gray-500">ICO:</span> {{ invoice.client.ico }}
+                                {% if invoice.client.dic %}<br><span class="text-gray-500">DIC:</span> {{ invoice.client.dic }}{% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Invoice Details -->
+            <div class="p-8 bg-gray-50 border-b">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                    <div>
+                        <p class="text-sm text-gray-500">Cislo faktury</p>
+                        <p class="text-lg font-bold text-gray-900">{{ invoice.invoice_number }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Datum vystavenia</p>
+                        <p class="text-lg font-semibold text-gray-900">{{ invoice.issue_date.strftime('%d.%m.%Y') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Datum splatnosti</p>
+                        <p class="text-lg font-semibold {% if invoice.is_overdue %}text-red-600{% else %}text-gray-900{% endif %}">
+                            {{ invoice.due_date.strftime('%d.%m.%Y') }}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Variabilny symbol</p>
+                        <p class="text-lg font-bold text-indigo-600">{{ invoice.variable_symbol }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Items -->
+            <div class="p-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Polozky faktury</h3>
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b-2 border-gray-200">
+                            <th class="text-left py-3 text-sm font-semibold text-gray-600">Popis</th>
+                            <th class="text-center py-3 text-sm font-semibold text-gray-600 w-20">Mnoz.</th>
+                            <th class="text-center py-3 text-sm font-semibold text-gray-600 w-16">MJ</th>
+                            <th class="text-right py-3 text-sm font-semibold text-gray-600 w-28">Cena/MJ</th>
+                            <th class="text-right py-3 text-sm font-semibold text-gray-600 w-28">Spolu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in invoice.items %}
+                        <tr class="border-b border-gray-100">
+                            <td class="py-4">
+                                <p class="font-medium text-gray-900">{{ item.description }}</p>
+                                {% if item.item_note %}
+                                <p class="text-sm text-gray-500 mt-1">{{ item.item_note }}</p>
+                                {% endif %}
+                            </td>
+                            <td class="py-4 text-center text-gray-700">{{ item.quantity }}</td>
+                            <td class="py-4 text-center text-gray-700">{{ item.unit }}</td>
+                            <td class="py-4 text-right text-gray-700">{{ "%.2f"|format(item.unit_price) }} €</td>
+                            <td class="py-4 text-right font-semibold text-gray-900">{{ "%.2f"|format(item.total) }} €</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <!-- Totals -->
+                <div class="mt-6 flex justify-end">
+                    <div class="w-64">
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-600">Zaklad dane:</span>
+                            <span class="font-medium">{{ "%.2f"|format(invoice.subtotal) }} €</span>
+                        </div>
+                        {% if invoice.vat_rate > 0 %}
+                        <div class="flex justify-between py-2 border-b">
+                            <span class="text-gray-600">DPH {{ invoice.vat_rate|int }}%:</span>
+                            <span class="font-medium">{{ "%.2f"|format(invoice.vat_amount) }} €</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between py-3 text-xl">
+                            <span class="font-bold text-gray-900">Celkom:</span>
+                            <span class="font-bold text-indigo-600">{{ "%.2f"|format(invoice.total) }} €</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Info -->
+            {% if invoice.status != 'paid' and invoice.payment_method == 'prevod' %}
+            <div class="p-8 bg-indigo-50 border-t">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Platobne udaje</h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <p class="text-sm text-gray-500 mb-1">Banka</p>
+                        <p class="font-medium">{{ invoice.supplier.bank_name or 'Neuvedena' }}</p>
+                        
+                        <p class="text-sm text-gray-500 mb-1 mt-4">IBAN</p>
+                        <p class="font-mono text-lg font-bold text-indigo-600">{{ invoice.supplier.iban }}</p>
+                        
+                        <p class="text-sm text-gray-500 mb-1 mt-4">Variabilny symbol</p>
+                        <p class="font-mono text-lg font-bold">{{ invoice.variable_symbol }}</p>
+                        
+                        <p class="text-sm text-gray-500 mb-1 mt-4">Suma k uhrade</p>
+                        <p class="text-2xl font-bold text-indigo-600">{{ "%.2f"|format(invoice.total) }} €</p>
+                    </div>
+                    
+                    {% if qr_code %}
+                    <div class="text-center">
+                        <p class="text-sm text-gray-500 mb-3">PAY by square - naskenujte QR kod</p>
+                        <img src="data:image/png;base64,{{ qr_code }}" alt="QR kod pre platbu" class="mx-auto w-48 h-48 rounded-lg shadow-lg">
+                        <p class="text-xs text-gray-500 mt-2">Kompatibilne so vsetkymi SK bankami</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Note -->
+            {% if invoice.note %}
+            <div class="p-8 border-t">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Poznamka</h3>
+                <p class="text-gray-700">{{ invoice.note }}</p>
+            </div>
+            {% endif %}
+            
+        </div>
+        
+        <!-- Footer -->
+        <div class="text-center mt-8 text-gray-500 text-sm no-print">
+            <p>Faktura vygenerovana systemom FakturaSK</p>
+            <p class="mt-1">© 2026 Bc. Viktor Labovsky</p>
+        </div>
+    </div>
+</body>
+</html>

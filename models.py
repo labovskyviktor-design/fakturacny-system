@@ -145,6 +145,12 @@ class Invoice(db.Model):
     note = db.Column(db.Text)  # Poznámka na faktúre
     internal_note = db.Column(db.Text)  # Interná poznámka
     
+    # Public link pre klientov
+    public_token = db.Column(db.String(64), unique=True, index=True)  # Unikatny token
+    first_viewed_at = db.Column(db.DateTime)  # Prvy pristup klienta
+    last_viewed_at = db.Column(db.DateTime)  # Posledny pristup
+    view_count = db.Column(db.Integer, default=0)  # Pocet zobrazeni
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -269,3 +275,93 @@ class ActivityLog(db.Model):
     
     def __repr__(self):
         return f'<ActivityLog {self.action}: {self.description[:30]}>'
+
+
+class InvoiceView(db.Model):
+    """Zaznam o zobrazeni faktury klientom"""
+    __tablename__ = 'invoice_views'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False)
+    
+    viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    ip_address = db.Column(db.String(45))  # IPv4 alebo IPv6
+    user_agent = db.Column(db.String(500))  # Browser info
+    
+    invoice = db.relationship('Invoice', backref=db.backref('views', lazy=True))
+    
+    def __repr__(self):
+        return f'<InvoiceView {self.invoice_id} at {self.viewed_at}>'
+
+
+class RecurringInvoice(db.Model):
+    """Pravidelna faktura - sablona pre automaticke generovanie"""
+    __tablename__ = 'recurring_invoices'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    
+    name = db.Column(db.String(200), nullable=False)  # Nazov sablony
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Frekvencia
+    FREQ_WEEKLY = 'weekly'
+    FREQ_MONTHLY = 'monthly'
+    FREQ_QUARTERLY = 'quarterly'
+    FREQ_YEARLY = 'yearly'
+    frequency = db.Column(db.String(20), default=FREQ_MONTHLY)
+    
+    # Datumy
+    start_date = db.Column(db.Date, nullable=False)  # Zaciatok
+    end_date = db.Column(db.Date)  # Koniec (null = bez limitu)
+    next_generate_date = db.Column(db.Date)  # Datum dalsieho generovania
+    last_generated_at = db.Column(db.DateTime)  # Posledne vygenerovanie
+    
+    # Nastavenia faktury
+    payment_method = db.Column(db.String(20), default='prevod')
+    vat_rate = db.Column(db.Float, default=20.0)
+    note = db.Column(db.Text)
+    days_until_due = db.Column(db.Integer, default=14)  # Splatnost v dnoch
+    
+    # Polozky ako JSON
+    items_json = db.Column(db.Text)  # JSON s polozkami
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Vztahy
+    user = db.relationship('User', backref=db.backref('recurring_invoices', lazy=True))
+    client = db.relationship('Client', backref=db.backref('recurring_invoices', lazy=True))
+    
+    def get_next_date(self, from_date=None):
+        """Vypocita dalsi datum generovania"""
+        if from_date is None:
+            from_date = date.today()
+        
+        if self.frequency == self.FREQ_WEEKLY:
+            return from_date + timedelta(weeks=1)
+        elif self.frequency == self.FREQ_MONTHLY:
+            # Pridaj mesiac
+            month = from_date.month + 1
+            year = from_date.year
+            if month > 12:
+                month = 1
+                year += 1
+            day = min(from_date.day, 28)  # Bezpecny den
+            return date(year, month, day)
+        elif self.frequency == self.FREQ_QUARTERLY:
+            month = from_date.month + 3
+            year = from_date.year
+            while month > 12:
+                month -= 12
+                year += 1
+            day = min(from_date.day, 28)
+            return date(year, month, day)
+        elif self.frequency == self.FREQ_YEARLY:
+            return date(from_date.year + 1, from_date.month, min(from_date.day, 28))
+        
+        return from_date + timedelta(days=30)
+    
+    def __repr__(self):
+        return f'<RecurringInvoice {self.name}>'

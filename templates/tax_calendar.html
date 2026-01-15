@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Danovy kalendar SR - FakturaSK{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Danovy kalendar 2026</h1>
+        <p class="text-slate-500 mt-2">Dolezite terminy pre podnikatelov na Slovensku</p>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="grid md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-red-600 dark:text-red-400">Najblizsie DPH</p>
+                    <p class="font-bold text-red-700 dark:text-red-300">25. januar</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-blue-600 dark:text-blue-400">Dan z prijmov</p>
+                    <p class="font-bold text-blue-700 dark:text-blue-300">31. marec</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-green-600 dark:text-green-400">Odvody SP</p>
+                    <p class="font-bold text-green-700 dark:text-green-300">8. kazdy mesiac</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm text-purple-600 dark:text-purple-400">Odvody ZP</p>
+                    <p class="font-bold text-purple-700 dark:text-purple-300">8. kazdy mesiac</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DPH Section -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"></path>
+            </svg>
+            Dan z pridanej hodnoty (DPH)
+        </h2>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b-2 border-slate-200 dark:border-slate-600">
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Obdobie</th>
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Termin podania</th>
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Typ</th>
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Poznamka</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tr><td class="py-3">December 2025</td><td class="py-3 font-semibold">25. januar 2026</td><td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny</span></td><td class="py-3 text-slate-500">Platitelia s obratom &gt; 100 000 €</td></tr>
+                    <tr><td class="py-3">Q4 2025</td><td class="py-3 font-semibold">25. januar 2026</td><td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Stvrrocny</span></td><td class="py-3 text-slate-500">Platitelia s obratom &lt; 100 000 €</td></tr>
+                    <tr><td class="py-3">Januar 2026</td><td class="py-3 font-semibold">25. februar 2026</td><td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny</span></td><td class="py-3 text-slate-500"></td></tr>
+                    <tr><td class="py-3">Februar 2026</td><td class="py-3 font-semibold">25. marec 2026</td><td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny</span></td><td class="py-3 text-slate-500"></td></tr>
+                    <tr><td class="py-3">Q1 2026</td><td class="py-3 font-semibold">25. april 2026</td><td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Stvrrocny</span></td><td class="py-3 text-slate-500"></td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <p class="text-sm text-amber-700 dark:text-amber-300">
+                <strong>Upozornenie:</strong> Kontrolny vykaz DPH sa podava v rovnakom termine ako danove priznanie DPH.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Dan z prijmov -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+            </svg>
+            Dan z prijmov
+        </h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Fyzicke osoby (SZCO)</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Danove priznanie</span><span class="font-semibold">31. marec 2026</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Predlzeny termin</span><span class="font-semibold">30. jun 2026</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Zahranie prijmy</span><span class="font-semibold">30. september 2026</span></li>
+                </ul>
+            </div>
+            
+            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Pravnicke osoby (s.r.o.)</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Danove priznanie</span><span class="font-semibold">31. marec 2026</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Predlzeny termin</span><span class="font-semibold">30. jun 2026</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Uctovna zavierka</span><span class="font-semibold">31. marec 2026</span></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p class="text-sm text-blue-700 dark:text-blue-300">
+                <strong>Sadzby dane 2026:</strong> 15% (do 60 000 €), 19% (od 60 000 € pre FO), 21% (pre PO)
+            </p>
+        </div>
+    </div>
+    
+    <!-- Odvody -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            Odvody SZCO
+        </h2>
+        
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Socialna poistovna</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Splatnost</span><span class="font-semibold">8. den mesiaca</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. vymeriavaci zaklad</span><span class="font-semibold">652,00 €</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Max. vymeriavaci zaklad</span><span class="font-semibold">9 128,00 €</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Sadzba SZCO</span><span class="font-semibold">33,15%</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. odvod</span><span class="font-semibold text-green-600">216,13 €</span></li>
+                </ul>
+            </div>
+            
+            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Zdravotna poistovna</h3>
+                <ul class="space-y-2 text-sm">
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Splatnost</span><span class="font-semibold">8. den mesiaca</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. vymeriavaci zaklad</span><span class="font-semibold">652,00 €</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Max. vymeriavaci zaklad</span><span class="font-semibold">bez limitu</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Sadzba SZCO</span><span class="font-semibold">14%</span></li>
+                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. odvod</span><span class="font-semibold text-green-600">91,28 €</span></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <p class="text-sm text-green-700 dark:text-green-300">
+                <strong>Celkove min. odvody SZCO:</strong> 307,41 € mesacne (SP + ZP)
+            </p>
+        </div>
+    </div>
+    
+    <!-- Dalsie povinnosti -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+            Dalsie dolezite terminy
+        </h2>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b-2 border-slate-200 dark:border-slate-600">
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Povinnost</th>
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Termin</th>
+                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Koho sa tyka</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <tr>
+                        <td class="py-3">Rocne zuctovanie ZP</td>
+                        <td class="py-3 font-semibold">30. september 2026</td>
+                        <td class="py-3 text-slate-500">Vsetky SZCO</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3">Daknova licencia</td>
+                        <td class="py-3 font-semibold">zrusena od 2018</td>
+                        <td class="py-3 text-slate-500">-</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3">Prehad o zrazkovej dani</td>
+                        <td class="py-3 font-semibold">do konca nasl. mesiaca</td>
+                        <td class="py-3 text-slate-500">Zamestnavatelia</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3">Hlasenie o prijmoch</td>
+                        <td class="py-3 font-semibold">28. februar 2026</td>
+                        <td class="py-3 text-slate-500">Zamestnavatelia</td>
+                    </tr>
+                    <tr>
+                        <td class="py-3">MOSS / OSS DPH</td>
+                        <td class="py-3 font-semibold">do konca nasl. mesiaca</td>
+                        <td class="py-3 text-slate-500">E-shopy predavajuce do EU</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Disclaimer -->
+    <div class="mt-8 p-4 bg-slate-100 dark:bg-slate-700 rounded-xl text-center">
+        <p class="text-sm text-slate-600 dark:text-slate-400">
+            <strong>Upozornenie:</strong> Informacie su orientacne. Pre aktualne udaje navstivte 
+            <a href="https://www.financnasprava.sk" target="_blank" class="text-primary-600 hover:underline">financnasprava.sk</a>
+            alebo konzultujte s danovym poradcom.
+        </p>
+    </div>
+</div>
+{% endblock %}
