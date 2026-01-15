@@ -57,8 +57,14 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 # Vytvorenie tabuliek pri štarte
+# Vytvorenie tabuliek pri štarte
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+        app.logger.info("Databázové tabuľky boli úspešne inicializované.")
+    except Exception as e:
+        app.logger.error(f"FATAL ERROR: Nepodarilo sa inicializovať databázu: {e}")
+        app.logger.error(traceback.format_exc())
 
 # Registrácia pomocných funkcií do Jinja2
 app.jinja_env.globals.update(
@@ -515,6 +521,7 @@ def invoice_add():
         return redirect(url_for('client_add'))
     
     if request.method == 'POST':
+        app.logger.info("Processing invoice creation...")
         try:
             # Získame klienta
             client_id = request.form.get('client_id')
@@ -529,6 +536,7 @@ def invoice_add():
             
             # Generujeme číslo faktúry
             invoice_number = supplier.get_next_invoice_number()
+            app.logger.info(f"Generated invoice number: {invoice_number}")
             
             # Vytvoríme faktúru
             invoice = Invoice(
@@ -548,6 +556,7 @@ def invoice_add():
             
             db.session.add(invoice)
             db.session.flush()
+            app.logger.info(f"Invoice {invoice.id} flushed to DB")
             
             # Pridáme položky
             descriptions = request.form.getlist('item_description[]')
@@ -590,6 +599,7 @@ def invoice_add():
             invoice.calculate_totals()
             
             # Activity log
+            app.logger.info("Logging activity...")
             ActivityLog.log(
                 ActivityLog.ACTION_INVOICE_CREATED,
                 f'Faktúra {invoice.invoice_number} vytvorená pre {client.name}',
@@ -600,6 +610,7 @@ def invoice_add():
             )
             
             db.session.commit()
+            app.logger.info("Invoice committed successfully.")
             
             flash(f'Faktúra {invoice.invoice_number} bola úspešne vytvorená.', 'success')
             return redirect(url_for('invoice_detail', invoice_id=invoice.id))
