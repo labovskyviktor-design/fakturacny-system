@@ -21,3 +21,10 @@ gunicorn>=21.0.0,<22.0.0
 
 # Databáza (pre PostgreSQL support)
 psycopg2-binary>=2.9.0,<3.0.0
+
+# Emailing
+Flask-Mail>=0.9.0,<1.0.0
+sendgrid>=6.10.0,<7.0.0
+
+# Monitoring
+sentry-sdk[flask]>=1.40.0,<2.0.0

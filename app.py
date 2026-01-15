@@ -14,40 +14,36 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from models import db, User, Supplier, Client, Invoice, InvoiceItem, ActivityLog, InvoiceView, RecurringInvoice
 from utils.company_lookup import lookup_company
 from utils.pay_by_square import generate_qr_code_base64, generate_sepa_qr
+from utils.email_service import mail
 import base64
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 from utils import (
     suma_slovom, format_currency, format_date_sk,
     get_payment_method_label, get_status_label, get_status_color,
     generate_pay_by_square
 )
 
+# Inicializácia Sentry (ak je DSN dostupné)
+if os.environ.get('SENTRY_DSN'):
+    sentry_sdk.init(
+        dsn=os.environ.get('SENTRY_DSN'),
+        integrations=[FlaskIntegration()],
+        traces_sample_rate=0.5,
+        profiles_sample_rate=0.5,
+    )
+
+from config import get_config
+
 # Vytvoríme Flask aplikáciu
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tajny-kluc-pre-fakturacny-system-2024')
 
-# Databáza - detekcia prostredia
-if os.environ.get('DATABASE_URL'):
-    # PostgreSQL z Railway/Render
-    db_url = os.environ.get('DATABASE_URL')
-    # Oprava pre Heroku/Render (postgres:// -> postgresql://)
-    if db_url.startswith('postgres://'):
-        db_url = db_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-elif os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RENDER'):
-    # Railway/Render bez PostgreSQL - použijeme /tmp
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/fakturacny_system.db'
-else:
-    # Lokálny vývoj
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fakturacny_system.db'
-    
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,
-    'pool_recycle': 300,
-}
+# Načítanie konfigurácie
+app.config.from_object(get_config())
 
-# Inicializácia databázy
+# Inicializácia rozšírení
 db.init_app(app)
+mail.init_app(app)
 
 # Flask-Login setup
 login_manager = LoginManager()
@@ -641,27 +637,38 @@ def invoice_add():
 @login_required
 def invoice_detail(invoice_id):
     """Detail faktúry"""
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
-    
-    # Generujeme QR kód
-    qr_code = None
-    if invoice.payment_method == 'prevod' and invoice.supplier.iban:
-        try:
-            qr_code = generate_qr_code_base64(
-                amount=invoice.total,
-                iban=invoice.supplier.iban,
-                swift=invoice.supplier.swift or '',
-                variable_symbol=invoice.variable_symbol,
-                beneficiary_name=invoice.supplier.name,
-                due_date=invoice.due_date.strftime('%Y%m%d')
-            )
-        except Exception as e:
-            print(f"Chyba pri generovaní QR kódu: {e}")
-    
-    return render_template('invoice_detail.html',
-        invoice=invoice,
-        qr_code=qr_code
-    )
+    app.logger.info(f"Viewing invoice {invoice_id}")
+    try:
+        invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+        app.logger.info(f"Invoice loaded: {invoice.invoice_number}")
+        
+        # Generujeme QR kód
+        qr_code = None
+        if app.config.get('ENABLE_QR_CODES') and invoice.payment_method == 'prevod' and invoice.supplier.iban:
+            app.logger.info("Generating QR code...")
+            try:
+                qr_code = generate_qr_code_base64(
+                    amount=invoice.total,
+                    iban=invoice.supplier.iban,
+                    swift=invoice.supplier.swift or '',
+                    variable_symbol=invoice.variable_symbol,
+                    beneficiary_name=invoice.supplier.name,
+                    due_date=invoice.due_date.strftime('%Y%m%d')
+                )
+                app.logger.info("QR code generated successfully")
+            except Exception as e:
+                app.logger.error(f"Chyba pri generovaní QR kódu: {e}")
+                app.logger.error(traceback.format_exc())
+        
+        app.logger.info("Rendering template invoice_detail.html")
+        return render_template('invoice_detail.html',
+            invoice=invoice,
+            qr_code=qr_code
+        )
+    except Exception as e:
+        app.logger.error(f"CRITICAL ERROR in invoice_detail: {e}")
+        app.logger.error(traceback.format_exc())
+        raise e  # Let the global handler handle it
 
 
 @app.route('/invoices/<int:invoice_id>/pdf')

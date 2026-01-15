@@ -35,6 +35,7 @@ class Config:
     # API konfigurácia
     EKOSYSTEM_API_URL = "https://autoform.ekosystem.slovensko.digital/api/corporate_bodies"
     FREEBYSQUARE_API_URL = "https://api.freebysquare.sk/pay/v1/generate-png"
+    ENABLE_QR_CODES = os.environ.get('ENABLE_QR_CODES', 'True') == 'True'
     
     # Rate limiting
     RATELIMIT_ENABLED = os.environ.get('RATELIMIT_ENABLED', 'True') == 'True'
@@ -44,9 +45,21 @@ class Config:
     CACHE_TYPE = 'simple'
     CACHE_DEFAULT_TIMEOUT = 300  # 5 minút
     
+    
     # Logging
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_FILE = os.environ.get('LOG_FILE', 'logs/app.log')
+    
+    # Email konfigurácia (SendGrid)
+    MAIL_SERVER = 'smtp.sendgrid.net'
+    MAIL_PORT = 587
+    MAIL_USE_TLS = True
+    MAIL_USERNAME = 'apikey'  # SendGrid vyžaduje toto username
+    MAIL_PASSWORD = os.environ.get('SENDGRID_API_KEY')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@fakturask.sk')
+    
+    # Monitoring (Sentry)
+    SENTRY_DSN = os.environ.get('SENTRY_DSN')
 
 
 class DevelopmentConfig(Config):
