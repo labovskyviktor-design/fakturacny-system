@@ -6,6 +6,7 @@ import requests
 from typing import Optional, Dict, Any, List
 import re
 from utils.sk_companies_db import SLOVAK_COMPANIES
+from utils.cache import cached
 
 
 class CompanyLookup:
@@ -25,6 +26,7 @@ class CompanyLookup:
             'Accept-Language': 'sk-SK,sk;q=0.9'
         })
     
+    @cached(timeout=600, key_prefix='company_lookup')
     def lookup(self, ico: str) -> Optional[Dict[str, Any]]:
         """
         Vyhľadá firmu podľa IČO.

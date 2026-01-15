@@ -131,6 +131,9 @@ python app.py
 | qrcode | Generovanie QR kodov |
 | Pillow | Praca s obrazkami |
 | Werkzeug | Bezpecnost hesiel |
+| WeasyPrint | PDF generovanie |
+| openpyxl | Excel export |
+| psycopg2-binary | PostgreSQL podpora (production) |
 
 ---
 
@@ -153,9 +156,39 @@ fakturacny_system/
 ├── utils/                 # Pomocne moduly
 │   ├── helpers.py         # Pomocne funkcie
 │   ├── pay_by_square.py   # PAY by square
-│   └── company_lookup.py  # RPO vyhladavanie
+│   ├── company_lookup.py  # RPO vyhladavanie
+│   ├── cache.py           # Cache system
+│   └── sk_companies_db.py # Lokalna databaza firiem
+├── config.py              # Konfiguracia aplikacie
+├── tests.py               # Unit testy
+├── .env.example           # Priklad konfiguracie
 ├── requirements.txt       # Zavislosti
 └── render.yaml            # Render.com konfiguracia
+```
+
+---
+
+## 🧪 Testovanie
+
+```bash
+# Spustenie testov
+python tests.py
+
+# Spustenie s verbose outputom
+python tests.py -v
+```
+
+---
+
+## ⚙️ Konfiguracia
+
+1. Skopirujte `.env.example` ako `.env`
+2. Upravte hodnoty podla potreby:
+
+```bash
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=sqlite:///instance/fakturacny_system.db
+FLASK_ENV=production
 ```
 
 ---

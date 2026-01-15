@@ -23,10 +23,19 @@ from utils import (
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tajny-kluc-pre-fakturacny-system-2024')
 
-# Databáza - použijeme /tmp na Renderi (ephemeral storage)
-if os.environ.get('RENDER'):
+# Databáza - detekcia prostredia
+if os.environ.get('DATABASE_URL'):
+    # PostgreSQL z Railway/Render
+    db_url = os.environ.get('DATABASE_URL')
+    # Oprava pre Heroku/Render (postgres:// -> postgresql://)
+    if db_url.startswith('postgres://'):
+        db_url = db_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+elif os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RENDER'):
+    # Railway/Render bez PostgreSQL - použijeme /tmp
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/fakturacny_system.db'
 else:
+    # Lokálny vývoj
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///fakturacny_system.db'
     
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

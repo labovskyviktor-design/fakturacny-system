@@ -3,11 +3,74 @@
 {% block title %}Danovy kalendar SR - FakturaSK{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Danovy kalendar 2026</h1>
-        <p class="text-slate-500 mt-2">Dolezite terminy pre podnikatelov na Slovensku</p>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            <svg class="w-10 h-10 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            Danovy kalendar 2026
+        </h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-2">Kompletny prehlad danovych povinnosti pre podnikatelov na Slovensku</p>
+    </div>
+    
+    <!-- Legend -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 mb-6">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Legenda farieb v kalendari:</h3>
+        <div class="flex flex-wrap gap-4">
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-red-500"></span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">DPH (mesacne/stvrrocne)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-blue-500"></span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Dan z prijmov</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-green-500"></span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Odvody SP/ZP</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-purple-500"></span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Ine povinnosti</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded bg-amber-500"></span>
+                <span class="text-sm text-slate-600 dark:text-slate-400">Statne sviatky</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Full Year Calendar -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-8">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            Rocny kalendar 2026
+        </h2>
+        
+        <!-- Calendar Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="yearCalendar">
+        </div>
+        
+        <!-- Event Detail Modal -->
+        <div id="eventModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 id="modalDate" class="text-xl font-bold text-slate-900 dark:text-white"></h3>
+                        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="modalContent" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- Quick Stats -->
@@ -20,8 +83,8 @@
                     </svg>
                 </div>
                 <div>
-                    <p class="text-sm text-red-600 dark:text-red-400">Najblizsie DPH</p>
-                    <p class="font-bold text-red-700 dark:text-red-300">25. januar</p>
+                    <p class="text-sm text-red-600 dark:text-red-400">DPH terminy</p>
+                    <p class="font-bold text-red-700 dark:text-red-300">25. kazdy mesiac</p>
                 </div>
             </div>
         </div>
@@ -69,174 +132,952 @@
         </div>
     </div>
     
-    <!-- DPH Section -->
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"></path>
-            </svg>
-            Dan z pridanej hodnoty (DPH)
-        </h2>
-        
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b-2 border-slate-200 dark:border-slate-600">
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Obdobie</th>
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Termin podania</th>
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Typ</th>
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Poznamka</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                    <tr><td class="py-3">December 2025</td><td class="py-3 font-semibold">25. januar 2026</td><td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny</span></td><td class="py-3 text-slate-500">Platitelia s obratom &gt; 100 000 €</td></tr>
-                    <tr><td class="py-3">Q4 2025</td><td class="py-3 font-semibold">25. januar 2026</td><td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Stvrrocny</span></td><td class="py-3 text-slate-500">Platitelia s obratom &lt; 100 000 €</td></tr>
-                    <tr><td class="py-3">Januar 2026</td><td class="py-3 font-semibold">25. februar 2026</td><td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny</span></td><td class="py-3 text-slate-500"></td></tr>
-                    <tr><td class="py-3">Februar 2026</td><td class="py-3 font-semibold">25. marec 2026</td><td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny</span></td><td class="py-3 text-slate-500"></td></tr>
-                    <tr><td class="py-3">Q1 2026</td><td class="py-3 font-semibold">25. april 2026</td><td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Stvrrocny</span></td><td class="py-3 text-slate-500"></td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <p class="text-sm text-amber-700 dark:text-amber-300">
-                <strong>Upozornenie:</strong> Kontrolny vykaz DPH sa podava v rovnakom termine ako danove priznanie DPH.
-            </p>
+    <!-- Tabs Navigation -->
+    <div class="mb-6">
+        <div class="border-b border-slate-200 dark:border-slate-700">
+            <nav class="flex flex-wrap gap-2" id="taxTabs">
+                <button onclick="showTab('dph')" class="tab-btn active px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 border-primary-600 text-primary-600 dark:text-primary-400" data-tab="dph">
+                    DPH
+                </button>
+                <button onclick="showTab('dan')" class="tab-btn px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400" data-tab="dan">
+                    Dan z prijmov
+                </button>
+                <button onclick="showTab('sp')" class="tab-btn px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400" data-tab="sp">
+                    Socialna poistovna
+                </button>
+                <button onclick="showTab('zp')" class="tab-btn px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400" data-tab="zp">
+                    Zdravotna poistovna
+                </button>
+                <button onclick="showTab('ine')" class="tab-btn px-4 py-3 text-sm font-medium rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400" data-tab="ine">
+                    Ine povinnosti
+                </button>
+            </nav>
         </div>
     </div>
     
-    <!-- Dan z prijmov -->
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-            </svg>
-            Dan z prijmov
-        </h2>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
-                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Fyzicke osoby (SZCO)</h3>
-                <ul class="space-y-2 text-sm">
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Danove priznanie</span><span class="font-semibold">31. marec 2026</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Predlzeny termin</span><span class="font-semibold">30. jun 2026</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Zahranie prijmy</span><span class="font-semibold">30. september 2026</span></li>
-                </ul>
+    <!-- DPH Tab -->
+    <div id="tab-dph" class="tab-content">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                Dan z pridanej hodnoty (DPH) - Zakon c. 222/2004 Z.z.
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4">
+                    <h3 class="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                        <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">Mesacny platitel</span>
+                    </h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Obrat za predchadzajuci rok <strong>&gt; 100 000 €</strong></p>
+                    <p class="text-sm text-slate-600 dark:text-slate-400">Termin: <strong>25. den nasledujuceho mesiaca</strong></p>
+                </div>
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4">
+                    <h3 class="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                        <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Stvrrocny platitel</span>
+                    </h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">Obrat za predchadzajuci rok <strong>&lt; 100 000 €</strong></p>
+                    <p class="text-sm text-slate-600 dark:text-slate-400">Termin: <strong>25. den po skonceni Q</strong></p>
+                </div>
             </div>
             
-            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
-                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Pravnicke osoby (s.r.o.)</h3>
-                <ul class="space-y-2 text-sm">
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Danove priznanie</span><span class="font-semibold">31. marec 2026</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Predlzeny termin</span><span class="font-semibold">30. jun 2026</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Uctovna zavierka</span><span class="font-semibold">31. marec 2026</span></li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p class="text-sm text-blue-700 dark:text-blue-300">
-                <strong>Sadzby dane 2026:</strong> 15% (do 60 000 €), 19% (od 60 000 € pre FO), 21% (pre PO)
-            </p>
-        </div>
-    </div>
-    
-    <!-- Odvody -->
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-            </svg>
-            Odvody SZCO
-        </h2>
-        
-        <div class="grid md:grid-cols-2 gap-6">
-            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
-                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Socialna poistovna</h3>
-                <ul class="space-y-2 text-sm">
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Splatnost</span><span class="font-semibold">8. den mesiaca</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. vymeriavaci zaklad</span><span class="font-semibold">652,00 €</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Max. vymeriavaci zaklad</span><span class="font-semibold">9 128,00 €</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Sadzba SZCO</span><span class="font-semibold">33,15%</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. odvod</span><span class="font-semibold text-green-600">216,13 €</span></li>
-                </ul>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b-2 border-slate-200 dark:border-slate-600">
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Zdanovacie obdobie</th>
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Termin podania DP + KV</th>
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Splatnost dane</th>
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Typ</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">December 2025</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.01.2026</td>
+                            <td class="py-3">25.01.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Q4 2025 (okt-dec)</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.01.2026</td>
+                            <td class="py-3">25.01.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Q</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Januar 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.02.2026</td>
+                            <td class="py-3">25.02.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Februar 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.03.2026</td>
+                            <td class="py-3">25.03.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Marec 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">27.04.2026</td>
+                            <td class="py-3">27.04.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Q1 2026 (jan-mar)</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">27.04.2026</td>
+                            <td class="py-3">27.04.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Q</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">April 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.05.2026</td>
+                            <td class="py-3">25.05.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Maj 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.06.2026</td>
+                            <td class="py-3">25.06.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Jun 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">27.07.2026</td>
+                            <td class="py-3">27.07.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Q2 2026 (apr-jun)</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">27.07.2026</td>
+                            <td class="py-3">27.07.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Q</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Jul 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.08.2026</td>
+                            <td class="py-3">25.08.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">August 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.09.2026</td>
+                            <td class="py-3">25.09.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">September 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">26.10.2026</td>
+                            <td class="py-3">26.10.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Q3 2026 (jul-sep)</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">26.10.2026</td>
+                            <td class="py-3">26.10.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded text-xs">Q</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">Oktober 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">25.11.2026</td>
+                            <td class="py-3">25.11.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3">November 2026</td>
+                            <td class="py-3 font-semibold text-red-600 dark:text-red-400">28.12.2026</td>
+                            <td class="py-3">28.12.2026</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">M</span></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
             
-            <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-4">
-                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Zdravotna poistovna</h3>
-                <ul class="space-y-2 text-sm">
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Splatnost</span><span class="font-semibold">8. den mesiaca</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. vymeriavaci zaklad</span><span class="font-semibold">652,00 €</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Max. vymeriavaci zaklad</span><span class="font-semibold">bez limitu</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Sadzba SZCO</span><span class="font-semibold">14%</span></li>
-                    <li class="flex justify-between"><span class="text-slate-600 dark:text-slate-400">Min. odvod</span><span class="font-semibold text-green-600">91,28 €</span></li>
-                </ul>
+            <div class="mt-6 grid md:grid-cols-2 gap-4">
+                <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <h4 class="font-semibold text-amber-700 dark:text-amber-300 mb-2">Kontrolny vykaz DPH</h4>
+                    <p class="text-sm text-amber-600 dark:text-amber-400">
+                        Podava sa v rovnakom termine ako danove priznanie. Povinna elektronicka forma.
+                    </p>
+                </div>
+                <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <h4 class="font-semibold text-blue-700 dark:text-blue-300 mb-2">Sadzby DPH 2026</h4>
+                    <p class="text-sm text-blue-600 dark:text-blue-400">
+                        Zakladna: <strong>23%</strong> | Znizena: <strong>10%</strong> (potraviny, lieky, knihy)
+                    </p>
+                </div>
             </div>
-        </div>
-        
-        <div class="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <p class="text-sm text-green-700 dark:text-green-300">
-                <strong>Celkove min. odvody SZCO:</strong> 307,41 € mesacne (SP + ZP)
-            </p>
         </div>
     </div>
     
-    <!-- Dalsie povinnosti -->
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6">
+    <!-- Dan z prijmov Tab -->
+    <div id="tab-dan" class="tab-content hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                Dan z prijmov - Zakon c. 595/2003 Z.z.
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <!-- Fyzicke osoby -->
+                <div class="border border-slate-200 dark:border-slate-600 rounded-xl overflow-hidden">
+                    <div class="bg-blue-500 text-white px-4 py-3">
+                        <h3 class="font-semibold">Fyzicke osoby (FO) / SZCO</h3>
+                    </div>
+                    <div class="p-4">
+                        <table class="w-full text-sm">
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                <tr>
+                                    <td class="py-2 text-slate-600 dark:text-slate-400">Danove priznanie</td>
+                                    <td class="py-2 font-semibold text-right text-blue-600">31.03.2026</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-600 dark:text-slate-400">Predlzeny termin (+3 mes.)</td>
+                                    <td class="py-2 font-semibold text-right">30.06.2026</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-600 dark:text-slate-400">So zahranicnymi prijmami (+6 mes.)</td>
+                                    <td class="py-2 font-semibold text-right">30.09.2026</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+                            <h4 class="font-semibold text-slate-900 dark:text-white mb-2">Sadzby dane FO 2026:</h4>
+                            <ul class="text-sm space-y-1 text-slate-600 dark:text-slate-400">
+                                <li>• <strong>15%</strong> - zaklad dane do 60 000 €</li>
+                                <li>• <strong>19%</strong> - zaklad dane do 176,8-nasobku ZM</li>
+                                <li>• <strong>25%</strong> - zaklad dane nad 176,8-nasobok ZM</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+                            <h4 class="font-semibold text-slate-900 dark:text-white mb-2">Preddavky na dan FO:</h4>
+                            <ul class="text-sm space-y-1 text-slate-600 dark:text-slate-400">
+                                <li>• Dan 2 500 - 16 600 € = <strong>stvrrocne</strong> (do 15. dna po Q)</li>
+                                <li>• Dan nad 16 600 € = <strong>mesacne</strong> (do konca mesiaca)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pravnicke osoby -->
+                <div class="border border-slate-200 dark:border-slate-600 rounded-xl overflow-hidden">
+                    <div class="bg-indigo-500 text-white px-4 py-3">
+                        <h3 class="font-semibold">Pravnicke osoby (PO) / s.r.o., a.s.</h3>
+                    </div>
+                    <div class="p-4">
+                        <table class="w-full text-sm">
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                                <tr>
+                                    <td class="py-2 text-slate-600 dark:text-slate-400">Danove priznanie</td>
+                                    <td class="py-2 font-semibold text-right text-blue-600">31.03.2026</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-600 dark:text-slate-400">Predlzeny termin (+3 mes.)</td>
+                                    <td class="py-2 font-semibold text-right">30.06.2026</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 text-slate-600 dark:text-slate-400">Uctovna zavierka</td>
+                                    <td class="py-2 font-semibold text-right">31.03.2026</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+                            <h4 class="font-semibold text-slate-900 dark:text-white mb-2">Sadzby dane PO 2026:</h4>
+                            <ul class="text-sm space-y-1 text-slate-600 dark:text-slate-400">
+                                <li>• <strong>15%</strong> - zdanitelne prijmy do 60 000 €</li>
+                                <li>• <strong>21%</strong> - zdanitelne prijmy nad 60 000 €</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+                            <h4 class="font-semibold text-slate-900 dark:text-white mb-2">Preddavky na dan PO:</h4>
+                            <ul class="text-sm space-y-1 text-slate-600 dark:text-slate-400">
+                                <li>• Dan 5 000 - 16 600 € = <strong>stvrrocne</strong></li>
+                                <li>• Dan 16 600 - 49 790 € = <strong>mesacne</strong> (1/12)</li>
+                                <li>• Dan nad 49 790 € = <strong>mesacne</strong> (1/12)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <h4 class="font-semibold text-green-700 dark:text-green-300 mb-2">Nezdanitelne casti zakladu dane 2026</h4>
+                <div class="grid md:grid-cols-3 gap-4 text-sm text-green-600 dark:text-green-400">
+                    <div>
+                        <p class="font-semibold">Na danivnika:</p>
+                        <p>5 646,48 € / rok</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold">Na manzela/ku:</p>
+                        <p>max. 5 646,48 € / rok</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold">Danovy bonus na dieta:</p>
+                        <p>140 € / mesiac (do 18r.)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Socialna poistovna Tab -->
+    <div id="tab-sp" class="tab-content hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                Socialna poistovna - Zakon c. 461/2003 Z.z.
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-5">
+                    <h3 class="font-semibold text-green-800 dark:text-green-200 mb-4">SZCO - Povinne poistenie</h3>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-green-200 dark:divide-green-800">
+                            <tr>
+                                <td class="py-2 text-green-700 dark:text-green-300">Splatnost odvodov</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">8. den mesiaca</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-green-700 dark:text-green-300">Sadzba SZCO</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">33,15%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-green-700 dark:text-green-300">Min. vymeriavaci zaklad</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">652,00 €</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-green-700 dark:text-green-300">Max. vymeriavaci zaklad</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">9 128,00 €</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-green-700 dark:text-green-300">Min. mesacny odvod</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">216,13 €</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-green-700 dark:text-green-300">Max. mesacny odvod</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">3 024,93 €</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-5">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200 mb-4">Struktura odvodov SZCO</h3>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-600">
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Nemocenske poistenie</td>
+                                <td class="py-2 font-semibold text-right">4,4%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Starobne poistenie</td>
+                                <td class="py-2 font-semibold text-right">18%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Invalidne poistenie</td>
+                                <td class="py-2 font-semibold text-right">6%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Rezervny fond</td>
+                                <td class="py-2 font-semibold text-right">4,75%</td>
+                            </tr>
+                            <tr class="bg-green-100 dark:bg-green-900/30">
+                                <td class="py-2 font-semibold text-green-800 dark:text-green-200">SPOLU</td>
+                                <td class="py-2 font-bold text-right text-green-800 dark:text-green-200">33,15%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Terminy odvodov SP 2026</h3>
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b-2 border-slate-200 dark:border-slate-600">
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Za mesiac</th>
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Splatnost</th>
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Za mesiac</th>
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Splatnost</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <tr>
+                            <td class="py-2">Januar</td>
+                            <td class="py-2 font-semibold text-green-600">08.02.2026</td>
+                            <td class="py-2">Jul</td>
+                            <td class="py-2 font-semibold text-green-600">08.08.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Februar</td>
+                            <td class="py-2 font-semibold text-green-600">08.03.2026</td>
+                            <td class="py-2">August</td>
+                            <td class="py-2 font-semibold text-green-600">08.09.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Marec</td>
+                            <td class="py-2 font-semibold text-green-600">08.04.2026</td>
+                            <td class="py-2">September</td>
+                            <td class="py-2 font-semibold text-green-600">08.10.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">April</td>
+                            <td class="py-2 font-semibold text-green-600">08.05.2026</td>
+                            <td class="py-2">Oktober</td>
+                            <td class="py-2 font-semibold text-green-600">08.11.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Maj</td>
+                            <td class="py-2 font-semibold text-green-600">08.06.2026</td>
+                            <td class="py-2">November</td>
+                            <td class="py-2 font-semibold text-green-600">08.12.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Jun</td>
+                            <td class="py-2 font-semibold text-green-600">08.07.2026</td>
+                            <td class="py-2">December</td>
+                            <td class="py-2 font-semibold text-green-600">08.01.2027</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <h4 class="font-semibold text-amber-700 dark:text-amber-300 mb-2">Kedy vznika povinna ucast SZCO na SP?</h4>
+                <p class="text-sm text-amber-600 dark:text-amber-400">
+                    Od 1.7. (resp. 1.10.) ak hrube prijmy za predchadzajuci rok prekrocili 12-nasobok minimalneho vymeriavacieho zakladu (7 824 € v roku 2025).
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Zdravotna poistovna Tab -->
+    <div id="tab-zp" class="tab-content hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                Zdravotna poistovna - Zakon c. 580/2004 Z.z.
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-5">
+                    <h3 class="font-semibold text-purple-800 dark:text-purple-200 mb-4">SZCO - Povinne poistenie</h3>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-purple-200 dark:divide-purple-800">
+                            <tr>
+                                <td class="py-2 text-purple-700 dark:text-purple-300">Splatnost preddavkov</td>
+                                <td class="py-2 font-bold text-right text-purple-800 dark:text-purple-200">8. den mesiaca</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-purple-700 dark:text-purple-300">Sadzba SZCO</td>
+                                <td class="py-2 font-bold text-right text-purple-800 dark:text-purple-200">14%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-purple-700 dark:text-purple-300">Sadzba SZCO so ZTP</td>
+                                <td class="py-2 font-bold text-right text-purple-800 dark:text-purple-200">7%</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-purple-700 dark:text-purple-300">Min. vymeriavaci zaklad</td>
+                                <td class="py-2 font-bold text-right text-purple-800 dark:text-purple-200">652,00 €</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-purple-700 dark:text-purple-300">Max. vymeriavaci zaklad</td>
+                                <td class="py-2 font-bold text-right text-purple-800 dark:text-purple-200">bez limitu</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-purple-700 dark:text-purple-300">Min. mesacny preddavok</td>
+                                <td class="py-2 font-bold text-right text-purple-800 dark:text-purple-200">91,28 €</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-5">
+                    <h3 class="font-semibold text-slate-800 dark:text-slate-200 mb-4">Dolezite terminy ZP</h3>
+                    <table class="w-full text-sm">
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-600">
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Rocne zuctovanie ZP</td>
+                                <td class="py-2 font-semibold text-right text-purple-600">30.09.2026</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Predlzeny termin RZ</td>
+                                <td class="py-2 font-semibold text-right">31.10.2026</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Uhrada nedoplatku</td>
+                                <td class="py-2 font-semibold text-right">do 45 dni od dorucenia</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2 text-slate-600 dark:text-slate-400">Vracenie preplatku</td>
+                                <td class="py-2 font-semibold text-right">do 45 dni od RZ</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+                        <h4 class="font-semibold text-slate-800 dark:text-slate-200 mb-2">Zdravotne poistovne v SR:</h4>
+                        <ul class="text-sm text-slate-600 dark:text-slate-400 space-y-1">
+                            <li>• Vseobecna zdravotna poistovna (VsZP)</li>
+                            <li>• Dovera zdravotna poistovna</li>
+                            <li>• Union zdravotna poistovna</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <h3 class="font-semibold text-slate-900 dark:text-white mb-3">Terminy preddavkov ZP 2026</h3>
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b-2 border-slate-200 dark:border-slate-600">
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Za mesiac</th>
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Splatnost</th>
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Za mesiac</th>
+                            <th class="text-left py-2 text-slate-600 dark:text-slate-300">Splatnost</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <tr>
+                            <td class="py-2">Januar</td>
+                            <td class="py-2 font-semibold text-purple-600">08.02.2026</td>
+                            <td class="py-2">Jul</td>
+                            <td class="py-2 font-semibold text-purple-600">08.08.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Februar</td>
+                            <td class="py-2 font-semibold text-purple-600">08.03.2026</td>
+                            <td class="py-2">August</td>
+                            <td class="py-2 font-semibold text-purple-600">08.09.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Marec</td>
+                            <td class="py-2 font-semibold text-purple-600">08.04.2026</td>
+                            <td class="py-2">September</td>
+                            <td class="py-2 font-semibold text-purple-600">08.10.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">April</td>
+                            <td class="py-2 font-semibold text-purple-600">08.05.2026</td>
+                            <td class="py-2">Oktober</td>
+                            <td class="py-2 font-semibold text-purple-600">08.11.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Maj</td>
+                            <td class="py-2 font-semibold text-purple-600">08.06.2026</td>
+                            <td class="py-2">November</td>
+                            <td class="py-2 font-semibold text-purple-600">08.12.2026</td>
+                        </tr>
+                        <tr>
+                            <td class="py-2">Jun</td>
+                            <td class="py-2 font-semibold text-purple-600">08.07.2026</td>
+                            <td class="py-2">December</td>
+                            <td class="py-2 font-semibold text-purple-600">08.01.2027</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <h4 class="font-semibold text-green-700 dark:text-green-300 mb-2">Celkove minimalne odvody SZCO 2026</h4>
+                <p class="text-2xl font-bold text-green-600 dark:text-green-400">
+                    307,41 € / mesiac <span class="text-sm font-normal">(SP 216,13 € + ZP 91,28 €)</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ine povinnosti Tab -->
+    <div id="tab-ine" class="tab-content hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                Ostatne danove a oznamovacie povinnosti
+            </h2>
+            
+            <div class="overflow-x-auto mb-6">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b-2 border-slate-200 dark:border-slate-600">
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Povinnost</th>
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Termin 2026</th>
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Koho sa tyka</th>
+                            <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Poznamka</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">Hlasenie o vyuctovanych prijmoch</td>
+                            <td class="py-3 font-semibold text-purple-600">28.02.2026</td>
+                            <td class="py-3 text-slate-500">Zamestnavatelia</td>
+                            <td class="py-3 text-sm text-slate-400">Za rok 2025</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">Rocne zuctovanie preddavkov dane</td>
+                            <td class="py-3 font-semibold text-purple-600">31.03.2026</td>
+                            <td class="py-3 text-slate-500">Zamestnavatelia pre zamestnancov</td>
+                            <td class="py-3 text-sm text-slate-400">Na ziadost zamestnanca</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">Potvrdenie o zaplateni dane (2%)</td>
+                            <td class="py-3 font-semibold text-purple-600">15.04.2026</td>
+                            <td class="py-3 text-slate-500">Zamestnavatelia</td>
+                            <td class="py-3 text-sm text-slate-400">Pre asignaciu dane</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">Vyhlasenie o poukazani 2% dane</td>
+                            <td class="py-3 font-semibold text-purple-600">30.04.2026</td>
+                            <td class="py-3 text-slate-500">FO, PO</td>
+                            <td class="py-3 text-sm text-slate-400">Pre neziskove organizacie</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">Rocne zuctovanie ZP</td>
+                            <td class="py-3 font-semibold text-purple-600">30.09.2026</td>
+                            <td class="py-3 text-slate-500">Vsetky SZCO, zamestnavatelia</td>
+                            <td class="py-3 text-sm text-slate-400">Vykonava ZP</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">OSS DPH (One Stop Shop)</td>
+                            <td class="py-3 font-semibold text-purple-600">Koniec nasl. mesiaca po Q</td>
+                            <td class="py-3 text-slate-500">E-shopy do EU</td>
+                            <td class="py-3 text-sm text-slate-400">Stvrrocne</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                            <td class="py-3 font-medium">Prehad o zrazkovej dani</td>
+                            <td class="py-3 font-semibold text-purple-600">Mesacne (do konca nasl. mes.)</td>
+                            <td class="py-3 text-slate-500">Zamestnavatelia</td>
+                            <td class="py-3 text-sm text-slate-400">Elektronicky</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <h4 class="font-semibold text-red-700 dark:text-red-300 mb-2">Pokuta za oneskore podanie</h4>
+                    <p class="text-sm text-red-600 dark:text-red-400">
+                        30 € - 16 000 € podla zavaznosti a opakovania. Za kazdy den omeskania sa moze navysit.
+                    </p>
+                </div>
+                <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <h4 class="font-semibold text-blue-700 dark:text-blue-300 mb-2">Elektronicke podanie</h4>
+                    <p class="text-sm text-blue-600 dark:text-blue-400">
+                        Vacsina podani je povinna elektronicky cez portal financnej spravy (eDane) s KEP alebo cez autorizaciu.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statne sviatky -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-6">
         <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-            <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-            </svg>
-            Dalsie dolezite terminy
+            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+            Statne sviatky a dni pracovneho pokoja SR 2026
         </h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Dni, kedy sa posuvaju danove terminy ak pripadaju na vikend alebo sviatok</p>
         
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b-2 border-slate-200 dark:border-slate-600">
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Povinnost</th>
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Termin</th>
-                        <th class="text-left py-3 text-sm font-semibold text-slate-600 dark:text-slate-300">Koho sa tyka</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                    <tr>
-                        <td class="py-3">Rocne zuctovanie ZP</td>
-                        <td class="py-3 font-semibold">30. september 2026</td>
-                        <td class="py-3 text-slate-500">Vsetky SZCO</td>
-                    </tr>
-                    <tr>
-                        <td class="py-3">Daknova licencia</td>
-                        <td class="py-3 font-semibold">zrusena od 2018</td>
-                        <td class="py-3 text-slate-500">-</td>
-                    </tr>
-                    <tr>
-                        <td class="py-3">Prehad o zrazkovej dani</td>
-                        <td class="py-3 font-semibold">do konca nasl. mesiaca</td>
-                        <td class="py-3 text-slate-500">Zamestnavatelia</td>
-                    </tr>
-                    <tr>
-                        <td class="py-3">Hlasenie o prijmoch</td>
-                        <td class="py-3 font-semibold">28. februar 2026</td>
-                        <td class="py-3 text-slate-500">Zamestnavatelia</td>
-                    </tr>
-                    <tr>
-                        <td class="py-3">MOSS / OSS DPH</td>
-                        <td class="py-3 font-semibold">do konca nasl. mesiaca</td>
-                        <td class="py-3 text-slate-500">E-shopy predavajuce do EU</td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="grid md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">1. januar</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Den vzniku SR</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">6. januar</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Zjavenie Pana</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">3. april</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Velky piatok</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">6. april</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Velkonocny pondelok</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">1. maj</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Sviatok prace</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">8. maj</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Den vitazstva nad fasizmom</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">5. jul</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Sv. Cyril a Metod</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">29. august</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Vyrocie SNP</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">1. september</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Den Ustavy SR</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">15. september</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Sedembolestna Panna Maria</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">1. november</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Sviatok vsetkych svatych</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">17. november</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Den boja za slobodu</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">24. december</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">Stedry den</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">25. december</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">1. sviatok vianocny</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                <p class="font-semibold text-amber-800 dark:text-amber-200">26. december</p>
+                <p class="text-sm text-amber-600 dark:text-amber-400">2. sviatok vianocny</p>
+            </div>
         </div>
     </div>
     
     <!-- Disclaimer -->
-    <div class="mt-8 p-4 bg-slate-100 dark:bg-slate-700 rounded-xl text-center">
+    <div class="p-4 bg-slate-100 dark:bg-slate-700 rounded-xl text-center">
         <p class="text-sm text-slate-600 dark:text-slate-400">
-            <strong>Upozornenie:</strong> Informacie su orientacne. Pre aktualne udaje navstivte 
-            <a href="https://www.financnasprava.sk" target="_blank" class="text-primary-600 hover:underline">financnasprava.sk</a>
+            <strong>Upozornenie:</strong> Informacie su orientacne a mozu sa menit. Pre aktualne udaje navstivte 
+            <a href="https://www.financnasprava.sk" target="_blank" class="text-primary-600 hover:underline">financnasprava.sk</a>, 
+            <a href="https://www.socpoist.sk" target="_blank" class="text-primary-600 hover:underline">socpoist.sk</a>
             alebo konzultujte s danovym poradcom.
         </p>
     </div>
 </div>
+
+<script>
+// Tax calendar data for 2026
+const taxEvents = {
+    // DPH monthly (25th of each month for previous month)
+    '2026-01-25': [{type: 'dph', title: 'DPH za december 2025', desc: 'Danove priznanie + Kontrolny vykaz'}],
+    '2026-01-25': [{type: 'dph', title: 'DPH za Q4 2025', desc: 'Stvrrocny platitelia'}, {type: 'dph', title: 'DPH za december 2025', desc: 'Mesacni platitelia'}],
+    '2026-02-25': [{type: 'dph', title: 'DPH za januar 2026', desc: 'Mesacni platitelia'}],
+    '2026-03-25': [{type: 'dph', title: 'DPH za februar 2026', desc: 'Mesacni platitelia'}],
+    '2026-04-27': [{type: 'dph', title: 'DPH za marec 2026', desc: 'Mesacni platitelia'}, {type: 'dph', title: 'DPH za Q1 2026', desc: 'Stvrrocni platitelia'}],
+    '2026-05-25': [{type: 'dph', title: 'DPH za april 2026', desc: 'Mesacni platitelia'}],
+    '2026-06-25': [{type: 'dph', title: 'DPH za maj 2026', desc: 'Mesacni platitelia'}],
+    '2026-07-27': [{type: 'dph', title: 'DPH za jun 2026', desc: 'Mesacni platitelia'}, {type: 'dph', title: 'DPH za Q2 2026', desc: 'Stvrrocni platitelia'}],
+    '2026-08-25': [{type: 'dph', title: 'DPH za jul 2026', desc: 'Mesacni platitelia'}],
+    '2026-09-25': [{type: 'dph', title: 'DPH za august 2026', desc: 'Mesacni platitelia'}],
+    '2026-10-26': [{type: 'dph', title: 'DPH za september 2026', desc: 'Mesacni platitelia'}, {type: 'dph', title: 'DPH za Q3 2026', desc: 'Stvrrocni platitelia'}],
+    '2026-11-25': [{type: 'dph', title: 'DPH za oktober 2026', desc: 'Mesacni platitelia'}],
+    '2026-12-28': [{type: 'dph', title: 'DPH za november 2026', desc: 'Mesacni platitelia'}],
+    
+    // Income tax
+    '2026-02-28': [{type: 'dan', title: 'Hlasenie o vyuctovanych prijmoch', desc: 'Zamestnavatelia za rok 2025'}],
+    '2026-03-31': [{type: 'dan', title: 'Danove priznanie k dani z prijmov', desc: 'FO a PO - zakladny termin'}, {type: 'dan', title: 'Uctovna zavierka', desc: 'Pravnicke osoby'}],
+    '2026-04-15': [{type: 'dan', title: 'Potvrdenie o zaplateni dane', desc: 'Pre asignaciu 2%'}],
+    '2026-04-30': [{type: 'dan', title: 'Vyhlasenie o poukazani 2% dane', desc: 'Pre neziskove organizacie'}],
+    '2026-06-30': [{type: 'dan', title: 'Danove priznanie - predlzeny termin', desc: 'FO a PO (+3 mesiace)'}],
+    '2026-09-30': [{type: 'dan', title: 'Danove priznanie - zahranicne prijmy', desc: 'FO (+6 mesiacov)'}, {type: 'odvody', title: 'Rocne zuctovanie ZP', desc: 'Vsetky SZCO'}],
+    
+    // Social and health insurance (8th of each month)
+    '2026-01-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za december 2025'}],
+    '2026-02-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za januar 2026'}],
+    '2026-03-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za februar 2026'}],
+    '2026-04-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za marec 2026'}],
+    '2026-05-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za april 2026'}],
+    '2026-06-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za maj 2026'}],
+    '2026-07-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za jun 2026'}],
+    '2026-08-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za jul 2026'}],
+    '2026-09-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za august 2026'}],
+    '2026-10-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za september 2026'}],
+    '2026-11-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za oktober 2026'}],
+    '2026-12-08': [{type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za november 2026'}],
+    
+    // Holidays
+    '2026-01-01': [{type: 'sviatok', title: 'Den vzniku SR', desc: 'Statny sviatok'}],
+    '2026-01-06': [{type: 'sviatok', title: 'Zjavenie Pana (Traja krali)', desc: 'Statny sviatok'}],
+    '2026-04-03': [{type: 'sviatok', title: 'Velky piatok', desc: 'Statny sviatok'}],
+    '2026-04-06': [{type: 'sviatok', title: 'Velkonocny pondelok', desc: 'Statny sviatok'}],
+    '2026-05-01': [{type: 'sviatok', title: 'Sviatok prace', desc: 'Statny sviatok'}],
+    '2026-05-08': [{type: 'sviatok', title: 'Den vitazstva nad fasizmom', desc: 'Statny sviatok'}, {type: 'odvody', title: 'Odvody SP a ZP', desc: 'Za april 2026'}],
+    '2026-07-05': [{type: 'sviatok', title: 'Sv. Cyril a Metod', desc: 'Statny sviatok'}],
+    '2026-08-29': [{type: 'sviatok', title: 'Vyrocie SNP', desc: 'Statny sviatok'}],
+    '2026-09-01': [{type: 'sviatok', title: 'Den Ustavy SR', desc: 'Statny sviatok'}],
+    '2026-09-15': [{type: 'sviatok', title: 'Sedembolestna Panna Maria', desc: 'Statny sviatok'}],
+    '2026-11-01': [{type: 'sviatok', title: 'Sviatok vsetkych svatych', desc: 'Statny sviatok'}],
+    '2026-11-17': [{type: 'sviatok', title: 'Den boja za slobodu a demokraciu', desc: 'Statny sviatok'}],
+    '2026-12-24': [{type: 'sviatok', title: 'Stedry den', desc: 'Statny sviatok'}],
+    '2026-12-25': [{type: 'sviatok', title: '1. sviatok vianocny', desc: 'Statny sviatok'}],
+    '2026-12-26': [{type: 'sviatok', title: '2. sviatok vianocny', desc: 'Statny sviatok'}]
+};
+
+const monthNames = ['Januar', 'Februar', 'Marec', 'April', 'Maj', 'Jun', 'Jul', 'August', 'September', 'Oktober', 'November', 'December'];
+const dayNames = ['Po', 'Ut', 'St', 'St', 'Pi', 'So', 'Ne'];
+
+function getTypeColor(type) {
+    switch(type) {
+        case 'dph': return 'bg-red-500';
+        case 'dan': return 'bg-blue-500';
+        case 'odvody': return 'bg-green-500';
+        case 'sviatok': return 'bg-amber-500';
+        default: return 'bg-purple-500';
+    }
+}
+
+function getTypeBgColor(type) {
+    switch(type) {
+        case 'dph': return 'bg-red-100 dark:bg-red-900/30';
+        case 'dan': return 'bg-blue-100 dark:bg-blue-900/30';
+        case 'odvody': return 'bg-green-100 dark:bg-green-900/30';
+        case 'sviatok': return 'bg-amber-100 dark:bg-amber-900/30';
+        default: return 'bg-purple-100 dark:bg-purple-900/30';
+    }
+}
+
+function generateCalendar() {
+    const container = document.getElementById('yearCalendar');
+    container.innerHTML = '';
+    
+    for (let month = 0; month < 12; month++) {
+        const monthDiv = document.createElement('div');
+        monthDiv.className = 'bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3';
+        
+        // Month header
+        const header = document.createElement('h3');
+        header.className = 'font-semibold text-slate-900 dark:text-white text-center mb-2 text-sm';
+        header.textContent = monthNames[month];
+        monthDiv.appendChild(header);
+        
+        // Day names header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'grid grid-cols-7 gap-1 mb-1';
+        ['Po', 'Ut', 'St', 'Št', 'Pi', 'So', 'Ne'].forEach(day => {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'text-xs text-center text-slate-400 font-medium';
+            dayDiv.textContent = day;
+            dayHeader.appendChild(dayDiv);
+        });
+        monthDiv.appendChild(dayHeader);
+        
+        // Days grid
+        const daysGrid = document.createElement('div');
+        daysGrid.className = 'grid grid-cols-7 gap-1';
+        
+        const firstDay = new Date(2026, month, 1);
+        const lastDay = new Date(2026, month + 1, 0);
+        
+        // Adjust for Monday start (0 = Monday, 6 = Sunday)
+        let startDay = firstDay.getDay() - 1;
+        if (startDay < 0) startDay = 6;
+        
+        // Empty cells before first day
+        for (let i = 0; i < startDay; i++) {
+            const emptyDiv = document.createElement('div');
+            daysGrid.appendChild(emptyDiv);
+        }
+        
+        // Days
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+            const dateStr = `2026-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const events = taxEvents[dateStr] || [];
+            
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'relative aspect-square flex items-center justify-center text-xs rounded cursor-pointer transition-all';
+            
+            const dayOfWeek = new Date(2026, month, day).getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            if (events.length > 0) {
+                // Has events - show colored background
+                const primaryType = events[0].type;
+                dayDiv.className += ` ${getTypeBgColor(primaryType)} font-bold hover:scale-110`;
+                
+                // Add dot indicators for multiple event types
+                if (events.length > 1) {
+                    const dotsDiv = document.createElement('div');
+                    dotsDiv.className = 'absolute bottom-0.5 left-1/2 transform -translate-x-1/2 flex gap-0.5';
+                    const uniqueTypes = [...new Set(events.map(e => e.type))];
+                    uniqueTypes.slice(0, 3).forEach(type => {
+                        const dot = document.createElement('div');
+                        dot.className = `w-1 h-1 rounded-full ${getTypeColor(type)}`;
+                        dotsDiv.appendChild(dot);
+                    });
+                    dayDiv.appendChild(dotsDiv);
+                }
+                
+                dayDiv.onclick = () => showEventModal(dateStr, events);
+            } else if (isWeekend) {
+                dayDiv.className += ' text-slate-400 dark:text-slate-500';
+            } else {
+                dayDiv.className += ' text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600';
+            }
+            
+            const dayText = document.createElement('span');
+            dayText.textContent = day;
+            dayDiv.appendChild(dayText);
+            
+            daysGrid.appendChild(dayDiv);
+        }
+        
+        monthDiv.appendChild(daysGrid);
+        container.appendChild(monthDiv);
+    }
+}
+
+function showEventModal(dateStr, events) {
+    const modal = document.getElementById('eventModal');
+    const modalDate = document.getElementById('modalDate');
+    const modalContent = document.getElementById('modalContent');
+    
+    const date = new Date(dateStr);
+    const dayOfWeek = ['Nedela', 'Pondelok', 'Utorok', 'Streda', 'Stvrtok', 'Piatok', 'Sobota'][date.getDay()];
+    modalDate.textContent = `${date.getDate()}. ${monthNames[date.getMonth()]} 2026 (${dayOfWeek})`;
+    
+    modalContent.innerHTML = '';
+    events.forEach(event => {
+        const eventDiv = document.createElement('div');
+        eventDiv.className = `p-3 rounded-lg ${getTypeBgColor(event.type)}`;
+        eventDiv.innerHTML = `
+            <div class="flex items-center gap-2 mb-1">
+                <span class="w-2 h-2 rounded-full ${getTypeColor(event.type)}"></span>
+                <span class="font-semibold text-slate-900 dark:text-white">${event.title}</span>
+            </div>
+            <p class="text-sm text-slate-600 dark:text-slate-400 ml-4">${event.desc}</p>
+        `;
+        modalContent.appendChild(eventDiv);
+    });
+    
+    modal.classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('eventModal').classList.add('hidden');
+}
+
+// Close modal on outside click
+document.getElementById('eventModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+// Tab functionality
+function showTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-primary-600', 'text-primary-600', 'dark:text-primary-400');
+        btn.classList.add('border-transparent', 'text-slate-500');
+    });
+    
+    // Show selected tab
+    document.getElementById('tab-' + tabName).classList.remove('hidden');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.remove('border-transparent', 'text-slate-500');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('border-primary-600', 'text-primary-600', 'dark:text-primary-400');
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    generateCalendar();
+});
+</script>
 {% endblock %}

@@ -1,11 +1,23 @@
 # Fakturačný systém - závislosti
-Flask>=2.3.0
-Flask-SQLAlchemy>=3.0.0
-Flask-Login>=0.6.0
-SQLAlchemy>=2.0.0
-Werkzeug>=3.0.0
-qrcode[pil]>=7.4.0
-Pillow>=10.0.0
-requests>=2.31.0
-openpyxl>=3.1.0
-gunicorn>=21.0.0
+# Core Framework
+Flask>=2.3.0,<4.0.0
+Flask-SQLAlchemy>=3.0.0,<4.0.0
+Flask-Login>=0.6.0,<1.0.0
+SQLAlchemy>=2.0.0,<3.0.0
+Werkzeug>=3.0.0,<4.0.0
+
+# QR kódy a obrázky
+qrcode[pil]>=7.4.0,<8.0.0
+Pillow>=10.0.0,<11.0.0
+
+# HTTP klient
+requests>=2.31.0,<3.0.0
+
+# Export
+openpyxl>=3.1.0,<4.0.0
+
+# Production server
+gunicorn>=21.0.0,<22.0.0
+
+# Databáza (pre PostgreSQL support)
+psycopg2-binary>=2.9.0,<3.0.0
