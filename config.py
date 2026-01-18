@@ -76,9 +76,9 @@ class ProductionConfig(Config):
     TESTING = False
     SESSION_COOKIE_SECURE = True
     
-    # PostgreSQL pre production
+    # PostgreSQL pre production - ak nie je, použijeme to isté čo vo vývoji (absolútnu cestu)
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///instance/fakturacny_system.db'
+        Config.SQLALCHEMY_DATABASE_URI
     
     # Ak je DATABASE_URL z Heroku/Render, oprav postgres:// na postgresql://
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):

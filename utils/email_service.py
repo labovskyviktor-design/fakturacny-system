@@ -48,8 +48,10 @@ def send_email(subject, recipient, body, html_body=None, attachments=None):
         
         # Odoslať v novom vlákne
         Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+        current_app.logger.info(f"Email to {recipient} queued for sending (Subject: {subject})")
         return True
         
     except Exception as e:
-        current_app.logger.error(f"Error preparing email: {e}")
+        current_app.logger.error(f"Error preparing email for {recipient}: {e}")
+        current_app.logger.error(traceback.format_exc())
         return False

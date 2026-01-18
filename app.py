@@ -744,45 +744,8 @@ def invoice_detail(invoice_id):
         raise e  # Let the global handler handle it
 
 
-@app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
-@login_required
-def invoice_send_email(invoice_id):
-    """Odoslanie faktúry emailom"""
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
-    
-    if not invoice.client.email:
-        flash('Klient nemá nastavený email.', 'error')
-        return redirect(url_for('invoice_detail', invoice_id=invoice.id))
-        
-    subject = f'Faktúra {invoice.invoice_number} - {invoice.supplier.name}'
-    body = f"""Dobrý deň,
-    
-v prílohe Vám posielame faktúru č. {invoice.invoice_number} na sumu {invoice.total} EUR.
-
-Dátum splatnosti: {invoice.due_date.strftime('%d.%m.%Y')}
-Variabilný symbol: {invoice.variable_symbol}
-
-S pozdravom,
-{invoice.supplier.name}
-"""
-    
-    from utils.email_service import send_email
-    
-    if send_email(subject, invoice.client.email, body):
-        flash(f'Faktúra bola odoslaná na {invoice.client.email}', 'success')
-    else:
-        app.logger.error("Failed to send email - check logs")
-        flash('Nepodarilo sa odoslať email. Skontrolujte nastavenia (API kľúč).', 'error')
-        
-    return redirect(url_for('invoice_detail', invoice_id=invoice.id))
-
-
-@app.route('/invoices/<int:invoice_id>/pdf')
-@login_required
-def invoice_pdf(invoice_id):
-    """Stiahnutie faktúry ako PDF"""
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
-    
+def _get_invoice_pdf_data(invoice):
+    """Pomocná funkcia na generovanie PDF dát faktúry"""
     # Generujeme QR kód
     qr_code = None
     if invoice.payment_method == 'prevod' and invoice.supplier.iban:
@@ -796,7 +759,7 @@ def invoice_pdf(invoice_id):
                 due_date=invoice.due_date.strftime('%Y%m%d')
             )
         except Exception as e:
-            print(f"Chyba pri generovaní QR kódu: {e}")
+            app.logger.error(f"Chyba pri generovaní QR kódu pre PDF: {e}")
     
     # Renderujeme HTML šablónu
     html = render_template('invoice_pdf.html',
@@ -819,20 +782,69 @@ def invoice_pdf(invoice_id):
             }
         ''')
         
-        pdf = HTML(string=html).write_pdf(stylesheets=[css])
+        pdf_data = HTML(string=html).write_pdf(stylesheets=[css])
+        return pdf_data, "application/pdf", True
         
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'attachment; filename=faktura_{invoice.invoice_number}.pdf'
-        return response
+    except Exception as e:
+        app.logger.error(f"WeasyPrint PDF generation failed: {e}")
+        # Ak WeasyPrint zlyhá, vrátime HTML
+        return html.encode('utf-8'), "text/html", False
+
+
+@app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
+@login_required
+def invoice_send_email(invoice_id):
+    """Odoslanie faktúry emailom"""
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    
+    if not invoice.client.email:
+        flash('Klient nemá nastavený email.', 'error')
+        return redirect(url_for('invoice_detail', invoice_id=invoice.id))
         
-    except ImportError:
-        # Ak WeasyPrint nie je dostupný, vrátime HTML
-        flash('WeasyPrint nie je nainštalovaný. Stiahnite HTML verziu.', 'warning')
-        response = make_response(html)
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        response.headers['Content-Disposition'] = f'attachment; filename=faktura_{invoice.invoice_number}.html'
-        return response
+    subject = f'Faktúra {invoice.invoice_number} - {invoice.supplier.name}'
+    body = f"""Dobrý deň,
+    
+v prílohe Vám posielame faktúru č. {invoice.invoice_number} na sumu {invoice.total} EUR.
+
+Dátum splatnosti: {invoice.due_date.strftime('%d.%m.%Y')}
+Variabilný symbol: {invoice.variable_symbol}
+
+S pozdravom,
+{invoice.supplier.name}
+"""
+    
+    # Generujeme prílohu
+    pdf_data, content_type, is_pdf = _get_invoice_pdf_data(invoice)
+    ext = "pdf" if is_pdf else "html"
+    attachments = [(f"faktura_{invoice.invoice_number}.{ext}", content_type, pdf_data)]
+    
+    from utils.email_service import send_email
+    
+    if send_email(subject, invoice.client.email, body, attachments=attachments):
+        flash(f'Faktúra bola odoslaná na {invoice.client.email}', 'success')
+    else:
+        app.logger.error("Failed to send email - check logs")
+        flash('Nepodarilo sa odoslať email. Skontrolujte nastavenia (API kľúč).', 'error')
+        
+    return redirect(url_for('invoice_detail', invoice_id=invoice.id))
+
+
+@app.route('/invoices/<int:invoice_id>/pdf')
+@login_required
+def invoice_pdf(invoice_id):
+    """Stiahnutie faktúry ako PDF"""
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    
+    pdf_data, content_type, is_pdf = _get_invoice_pdf_data(invoice)
+    
+    if not is_pdf:
+        flash('Generovanie PDF zlyhalo. Stiahnutá HTML verzia.', 'warning')
+        
+    ext = "pdf" if is_pdf else "html"
+    response = make_response(pdf_data)
+    response.headers['Content-Type'] = content_type
+    response.headers['Content-Disposition'] = f'attachment; filename=faktura_{invoice.invoice_number}.{ext}'
+    return response
 
 
 @app.route('/invoices/<int:invoice_id>/mark-paid', methods=['POST'])
