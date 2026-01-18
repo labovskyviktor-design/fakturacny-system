@@ -733,10 +733,19 @@ def invoice_detail(invoice_id):
                 app.logger.error(f"Chyba pri generovaní QR kódu: {e}")
                 app.logger.error(traceback.format_exc())
         
+        # Parametre pre Gmail (Compose link)
+        gmail_link = None
+        if invoice.client.email:
+            from urllib.parse import quote
+            subject = quote(f"Faktúra č. {invoice.invoice_number}")
+            body = quote(f"Dobrý deň,\n\nv prílohe Vám zasielame faktúru č. {invoice.invoice_number}.\n\nS pozdravom,\n{invoice.supplier.name}")
+            gmail_link = f"https://mail.google.com/mail/?view=cm&fs=1&to={invoice.client.email}&su={subject}&body={body}"
+
         app.logger.info("Rendering template invoice_detail.html")
         return render_template('invoice_detail.html',
             invoice=invoice,
-            qr_code=qr_code
+            qr_code=qr_code,
+            gmail_link=gmail_link
         )
     except Exception as e:
         app.logger.error(f"CRITICAL ERROR in invoice_detail: {e}")
