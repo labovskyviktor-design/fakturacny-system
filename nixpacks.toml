@@ -1,6 +1,10 @@
 # Railway Nixpacks konfigurácia
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "pango", "cairo", "gdk-pixbuf", "libwebp", "fontconfig", "libffi", "glib", "shared-mime-info", "libxml2", "libxslt", "harfbuzz", "fribidi", "gtk3", "gobject-introspection"]
+nixPkgs = ["python311", "gcc", "postgresql", "pango", "cairo", "gdk-pixbuf", "libwebp", "fontconfig", "libffi", "glib", "shared-mime-info", "gtk3", "gobject-introspection"]
+
+[variables]
+LD_LIBRARY_PATH = "/usr/lib:/usr/local/lib:/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
+PYTHONPATH = ".:$PYTHONPATH"
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
@@ -9,4 +13,4 @@ cmds = ["pip install -r requirements.txt"]
 cmds = []
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --log-level debug --capture-output"
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --log-level debug --capture-output --enable-stdio-inheritance"

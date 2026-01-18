@@ -776,7 +776,7 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Pokúsime sa použiť WeasyPrint
+    # Pokúsime sa použiť WeasyPrint (ak sú dostupné knižnice)
     try:
         from weasyprint import HTML, CSS
         
@@ -794,12 +794,29 @@ def _get_invoice_pdf_data(invoice):
         pdf_data = HTML(string=html).write_pdf(stylesheets=[css])
         return pdf_data, "application/pdf", True
         
-    except Exception as e:
+    except Exception as we_error:
+        app.logger.warning(f"WeasyPrint failed, trying xhtml2pdf: {we_error}")
+        
+        # Fallback na xhtml2pdf (čisto Python knižnica bez systémových závislostí)
+        try:
+            import io
+            from xhtml2pdf import pisa
+            
+            result_file = io.BytesIO()
+            pisa_status = pisa.CreatePDF(html, dest=result_file)
+            
+            if not pisa_status.err:
+                return result_file.getvalue(), "application/pdf", True
+            else:
+                error_msg = f"xhtml2pdf error code: {pisa_status.err}"
+        except Exception as e:
+            error_msg = str(e)
+            
         import traceback
-        error_msg = str(e)
         trace_msg = traceback.format_exc()
-        app.logger.error(f"WeasyPrint PDF generation failed: {error_msg}\n{trace_msg}")
-        # Ak WeasyPrint zlyhá, vrátime HTML a chybovú správu
+        app.logger.error(f"Both PDF engines failed. xhtml2pdf error: {error_msg}\n{trace_msg}")
+        
+        # Ak všetko zlyhá, vrátime HTML a chybovú správu
         return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
 
 @app.route('/debug/pdf-test')

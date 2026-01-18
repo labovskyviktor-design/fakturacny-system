@@ -31,3 +31,4 @@ sentry-sdk[flask]>=1.40.0,<2.0.0
 
 # PDF Generation
 weasyprint>=60.0.0
+xhtml2pdf>=0.2.11
