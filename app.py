@@ -795,10 +795,32 @@ def _get_invoice_pdf_data(invoice):
         return pdf_data, "application/pdf", True
         
     except Exception as e:
+        import traceback
         error_msg = str(e)
-        app.logger.error(f"WeasyPrint PDF generation failed: {error_msg}")
+        trace_msg = traceback.format_exc()
+        app.logger.error(f"WeasyPrint PDF generation failed: {error_msg}\n{trace_msg}")
         # Ak WeasyPrint zlyhá, vrátime HTML a chybovú správu
-        return html.encode('utf-8'), "text/html", error_msg
+        return html.encode('utf-8'), "text/html", f"{error_msg} (Check logs for traceback)"
+
+@app.route('/debug/pdf-test')
+@login_required
+def debug_pdf_test():
+    """Testovacia cesta na overenie funkčnosti WeasyPrint na serveri"""
+    if not current_user.is_authenticated:
+        return "Not authorized", 403
+        
+    try:
+        from weasyprint import HTML
+        html_content = "<h1>PDF Test</h1><p>Ak toto vidíte ako PDF, WeasyPrint funguje.</p>"
+        pdf_data = HTML(string=html_content).write_pdf()
+        
+        response = make_response(pdf_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = 'inline; filename=test.pdf'
+        return response
+    except Exception as e:
+        import traceback
+        return f"PDF Test zlyhal: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
