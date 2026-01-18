@@ -795,9 +795,10 @@ def _get_invoice_pdf_data(invoice):
         return pdf_data, "application/pdf", True
         
     except Exception as e:
-        app.logger.error(f"WeasyPrint PDF generation failed: {e}")
-        # Ak WeasyPrint zlyhá, vrátime HTML
-        return html.encode('utf-8'), "text/html", False
+        error_msg = str(e)
+        app.logger.error(f"WeasyPrint PDF generation failed: {error_msg}")
+        # Ak WeasyPrint zlyhá, vrátime HTML a chybovú správu
+        return html.encode('utf-8'), "text/html", error_msg
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
@@ -823,9 +824,17 @@ S pozdravom,
 """
     
     # Generujeme prílohu
-    pdf_data, content_type, is_pdf = _get_invoice_pdf_data(invoice)
-    ext = "pdf" if is_pdf else "html"
-    attachments = [(f"faktura_{invoice.invoice_number}.{ext}", content_type, pdf_data)]
+    pdf_data, content_type, result = _get_invoice_pdf_data(invoice)
+    
+    if result is True:
+        ext = "pdf"
+        attachments = [(f"faktura_{invoice.invoice_number}.pdf", content_type, pdf_data)]
+    else:
+        # Fallback na HTML
+        ext = "html"
+        error_msg = result if isinstance(result, str) else "Neznáma chyba"
+        flash(f"Generovanie PDF zlyhalo: {error_msg}. Súbor bol odoslaný ako HTML.", "warning")
+        attachments = [(f"faktura_{invoice.invoice_number}.html", content_type, pdf_data)]
     
     from utils.email_service import send_email
     
@@ -844,12 +853,16 @@ def invoice_pdf(invoice_id):
     """Stiahnutie faktúry ako PDF"""
     invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
     
-    pdf_data, content_type, is_pdf = _get_invoice_pdf_data(invoice)
+    pdf_data, content_type, result = _get_invoice_pdf_data(invoice)
     
-    if not is_pdf:
-        flash('Generovanie PDF zlyhalo. Stiahnutá HTML verzia.', 'warning')
+    if result is True:
+        ext = "pdf"
+    else:
+        # Fallback na HTML
+        ext = "html"
+        error_msg = result if isinstance(result, str) else "Neznáma chyba"
+        flash(f"Generovanie PDF zlyhalo: {error_msg}. Stiahnutá HTML verzia.", 'warning')
         
-    ext = "pdf" if is_pdf else "html"
     response = make_response(pdf_data)
     response.headers['Content-Type'] = content_type
     response.headers['Content-Disposition'] = f'attachment; filename=faktura_{invoice.invoice_number}.{ext}'
