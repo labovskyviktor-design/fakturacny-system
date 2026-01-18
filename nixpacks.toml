@@ -1,9 +1,8 @@
 # Railway Nixpacks konfigurácia
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "pango", "cairo", "gdk-pixbuf", "libwebp", "fontconfig", "libffi", "glib", "shared-mime-info", "gtk3", "gobject-introspection"]
+nixPkgs = ["python311", "gcc", "postgresql"]
 
 [variables]
-LD_LIBRARY_PATH = "/usr/lib:/usr/local/lib:/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
 PYTHONPATH = ".:$PYTHONPATH"
 
 [phases.install]
