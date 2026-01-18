@@ -4,6 +4,7 @@ Služba pre odosielanie emailov (SendGrid cez Flask-Mail)
 from flask_mail import Mail, Message
 from flask import current_app, render_template_string
 from threading import Thread
+import traceback
 
 mail = Mail()
 
