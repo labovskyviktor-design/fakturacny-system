@@ -13,35 +13,45 @@
         <div class="flex flex-wrap gap-2">
             {% if invoice.status == 'issued' or invoice.status == 'overdue' %}
             <form action="{{ url_for('invoice_mark_paid', invoice_id=invoice.id) }}" method="POST" class="inline">
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                <button type="submit"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                     ✓ Označiť ako uhradenú
                 </button>
             </form>
             {% endif %}
-            <a href="{{ url_for('invoice_edit', invoice_id=invoice.id) }}" 
-               class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+            <a href="{{ url_for('invoice_edit', invoice_id=invoice.id) }}"
+                class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                 ✏ Upraviť
             </a>
             <form action="{{ url_for('invoice_clone', invoice_id=invoice.id) }}" method="POST" class="inline">
-                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                <button type="submit"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                     ⎘ Klonovať
                 </button>
             </form>
-            <a href="{{ url_for('invoice_pdf', invoice_id=invoice.id) }}" 
-               class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+            <form action="{{ url_for('invoice_send_email', invoice_id=invoice.id) }}" method="POST" class="inline"
+                onsubmit="return confirm('Odoslať faktúru na email {{ invoice.client.email }}?')">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                    ✉ Poslať email
+                </button>
+            </form>
+            <a href="{{ url_for('invoice_pdf', invoice_id=invoice.id) }}"
+                class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
                 ↓ PDF
             </a>
             {% if invoice.status != 'cancelled' and invoice.status != 'paid' %}
             <form action="{{ url_for('invoice_cancel', invoice_id=invoice.id) }}" method="POST" class="inline"
-                  onsubmit="return confirm('Naozaj chcete stornovať túto faktúru?')">
-                <button type="submit" class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors">
+                onsubmit="return confirm('Naozaj chcete stornovať túto faktúru?')">
+                <button type="submit"
+                    class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-medium transition-colors">
                     Stornovať
                 </button>
             </form>
             {% endif %}
         </div>
     </div>
-    
+
     <!-- Stav -->
     <div class="flex items-center space-x-4">
         <span class="px-4 py-2 text-sm font-medium rounded-full {{ get_status_color(invoice.status) }}">
@@ -53,7 +63,7 @@
         </span>
         {% endif %}
     </div>
-    
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Hlavný obsah -->
         <div class="lg:col-span-2 space-y-6">
@@ -77,7 +87,7 @@
                         {% endif %}
                     </div>
                 </div>
-                
+
                 <!-- Odberateľ -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Odberateľ</h3>
@@ -97,7 +107,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Položky -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100">
                 <div class="px-6 py-4 border-b border-gray-100">
@@ -107,11 +117,21 @@
                     <table class="w-full">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Popis</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Množstvo</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jednotka</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cena/j.</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Celkom</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Popis</th>
+                                <th
+                                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Množstvo</th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Jednotka</th>
+                                <th
+                                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Cena/j.</th>
+                                <th
+                                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Celkom</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
@@ -120,45 +140,52 @@
                                 <td class="px-6 py-4 text-gray-800">{{ item.description }}</td>
                                 <td class="px-6 py-4 text-right text-gray-600">{{ item.quantity }}</td>
                                 <td class="px-6 py-4 text-gray-600">{{ item.unit }}</td>
-                                <td class="px-6 py-4 text-right text-gray-600">{{ format_currency(item.unit_price) }} €</td>
-                                <td class="px-6 py-4 text-right font-medium text-gray-800">{{ format_currency(item.total) }} €</td>
+                                <td class="px-6 py-4 text-right text-gray-600">{{ format_currency(item.unit_price) }} €
+                                </td>
+                                <td class="px-6 py-4 text-right font-medium text-gray-800">{{
+                                    format_currency(item.total) }} €</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot class="bg-gray-50">
                             <tr>
                                 <td colspan="4" class="px-6 py-3 text-right text-sm text-gray-600">Medzisúčet:</td>
-                                <td class="px-6 py-3 text-right font-medium text-gray-800">{{ format_currency(invoice.subtotal) }} €</td>
+                                <td class="px-6 py-3 text-right font-medium text-gray-800">{{
+                                    format_currency(invoice.subtotal) }} €</td>
                             </tr>
                             {% if invoice.vat_rate > 0 %}
                             <tr>
-                                <td colspan="4" class="px-6 py-3 text-right text-sm text-gray-600">DPH ({{ invoice.vat_rate|int }}%):</td>
-                                <td class="px-6 py-3 text-right font-medium text-gray-800">{{ format_currency(invoice.vat_amount) }} €</td>
+                                <td colspan="4" class="px-6 py-3 text-right text-sm text-gray-600">DPH ({{
+                                    invoice.vat_rate|int }}%):</td>
+                                <td class="px-6 py-3 text-right font-medium text-gray-800">{{
+                                    format_currency(invoice.vat_amount) }} €</td>
                             </tr>
                             {% endif %}
                             <tr class="border-t-2 border-gray-200">
-                                <td colspan="4" class="px-6 py-4 text-right text-lg font-bold text-gray-800">Celkom k úhrade:</td>
-                                <td class="px-6 py-4 text-right text-lg font-bold text-primary-600">{{ format_currency(invoice.total) }} €</td>
+                                <td colspan="4" class="px-6 py-4 text-right text-lg font-bold text-gray-800">Celkom k
+                                    úhrade:</td>
+                                <td class="px-6 py-4 text-right text-lg font-bold text-primary-600">{{
+                                    format_currency(invoice.total) }} €</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
-            
+
             <!-- Suma slovom -->
             <div class="bg-blue-50 border border-blue-100 rounded-xl p-4">
                 <p class="text-sm text-blue-800">
                     <span class="font-medium">Suma slovom:</span> {{ suma_slovom(invoice.total) }}
                 </p>
             </div>
-            
+
             {% if invoice.note %}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Poznámka</h3>
                 <p class="text-gray-600">{{ invoice.note }}</p>
             </div>
             {% endif %}
-            
+
             <!-- Interná poznámka -->
             <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
                 <div class="flex justify-between items-start mb-2">
@@ -166,16 +193,17 @@
                     <span class="text-xs text-yellow-600">🔒 Nezobrazí sa na faktúre</span>
                 </div>
                 <form action="{{ url_for('invoice_internal_note', invoice_id=invoice.id) }}" method="POST">
-                    <textarea name="internal_note" rows="2" 
-                              placeholder="Napr.: Pán Čurma sľúbil, že zaplatí do pondelka..."
-                              class="w-full px-3 py-2 border border-yellow-200 bg-white rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-sm">{{ invoice.internal_note or '' }}</textarea>
-                    <button type="submit" class="mt-2 text-sm bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded-lg">
+                    <textarea name="internal_note" rows="2"
+                        placeholder="Napr.: Pán Čurma sľúbil, že zaplatí do pondelka..."
+                        class="w-full px-3 py-2 border border-yellow-200 bg-white rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-sm">{{ invoice.internal_note or '' }}</textarea>
+                    <button type="submit"
+                        class="mt-2 text-sm bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded-lg">
                         Uložiť poznámku
                     </button>
                 </form>
             </div>
         </div>
-        
+
         <!-- Bočný panel -->
         <div class="space-y-6">
             <!-- Údaje faktúry -->
@@ -200,17 +228,19 @@
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-gray-600 text-sm">Dátum splatnosti:</dt>
-                        <dd class="font-medium {% if invoice.is_overdue %}text-red-600{% else %}text-gray-800{% endif %}">
+                        <dd
+                            class="font-medium {% if invoice.is_overdue %}text-red-600{% else %}text-gray-800{% endif %}">
                             {{ format_date_sk(invoice.due_date) }}
                         </dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="text-gray-600 text-sm">Forma úhrady:</dt>
-                        <dd class="font-medium text-gray-800">{{ get_payment_method_label(invoice.payment_method) }}</dd>
+                        <dd class="font-medium text-gray-800">{{ get_payment_method_label(invoice.payment_method) }}
+                        </dd>
                     </div>
                 </dl>
             </div>
-            
+
             <!-- Bankové údaje -->
             {% if invoice.payment_method == 'prevod' and invoice.supplier.iban %}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -234,7 +264,7 @@
                     {% endif %}
                 </dl>
             </div>
-            
+
             <!-- QR kód -->
             {% if qr_code %}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
@@ -242,6 +272,16 @@
                 <img src="{{ qr_code }}" alt="QR kód" class="mx-auto w-40 h-40">
                 <p class="text-xs text-gray-500 mt-2">Naskenujte pre platbu</p>
             </div>
+            {% else %}
+            {% if invoice.payment_method == 'prevod' %}
+            <div class="bg-yellow-50 rounded-xl shadow-sm border border-yellow-100 p-6 text-center">
+                <h3 class="text-xs font-medium text-yellow-700 uppercase tracking-wide mb-2">QR kód nedostupný</h3>
+                <p class="text-xs text-yellow-600">
+                    {% if not invoice.supplier.iban %}Chýba IBAN dodávateľa.{% else %}Skontrolujte správnosť údajov.{%
+                    endif %}
+                </p>
+            </div>
+            {% endif %}
             {% endif %}
             {% endif %}
         </div>

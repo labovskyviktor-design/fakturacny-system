@@ -108,7 +108,7 @@ def handle_exception(e):
         db.session.rollback()
     except:
         pass
-        
+
     return render_template('500.html'), 500
 
 
@@ -244,8 +244,8 @@ def demo_login():
         dic='2012345678',
         is_vat_payer=True,
         ic_dph='SK2012345678',
-        bank_name='Demo Banka',
-        iban='SK0000000000000000000000',
+        bank_name='Tatra banka, a.s.',
+        iban='SK3111000000002612012345',  # Valid SK IBAN format
         email='demo@firma.sk',
         phone='+421 900 123 456',
         invoice_prefix='DEMO'
@@ -298,83 +298,128 @@ def gdpr():
 @login_required
 def dashboard():
     """Hlavný dashboard s prehľadom a analytics"""
-    supplier = Supplier.query.filter_by(user_id=current_user.id).first()
-    
-    # Všetky faktúry tohto používateľa
-    invoices = Invoice.query.filter_by(user_id=current_user.id).all()
-    
-    # Aktualizujeme stavy po splatnosti
-    for inv in invoices:
-        inv.check_overdue()
-    db.session.commit()
-    
-    # Základné štatistiky
-    total_invoices = len(invoices)
-    paid_invoices = [i for i in invoices if i.status == Invoice.STATUS_PAID]
-    overdue_invoices = [i for i in invoices if i.is_overdue]
-    issued_invoices = [i for i in invoices if i.status == Invoice.STATUS_ISSUED]
-    
-    total_revenue = sum(i.total for i in paid_invoices)
-    total_pending = sum(i.total for i in issued_invoices)
-    total_overdue = sum(i.total for i in overdue_invoices)
-    
-    # === ANALYTICS ===
-    active_invoices = [i for i in invoices if i.status != Invoice.STATUS_CANCELLED]
-    total_invoiced = sum(i.total for i in active_invoices)
-    total_profit = sum(i.profit for i in paid_invoices)
-    total_cost = sum(i.total_cost for i in paid_invoices)
-    expected_income = total_pending
-    
-    # Top odberateľ
-    client_totals = defaultdict(float)
-    for inv in paid_invoices:
-        client_totals[inv.client_id] += inv.total
-    
-    top_client = None
-    top_client_amount = 0
-    if client_totals:
-        top_client_id = max(client_totals, key=client_totals.get)
-        top_client = Client.query.filter_by(id=top_client_id, user_id=current_user.id).first()
-        top_client_amount = client_totals[top_client_id]
-    
-    # Mesačný prehľad
-    monthly_data = []
-    today = date.today()
-    for i in range(5, -1, -1):
-        month_start = date(today.year, today.month, 1) - timedelta(days=30*i)
-        month_name = month_start.strftime('%b %Y')
-        month_revenue = sum(
-            inv.total for inv in paid_invoices 
-            if inv.paid_date and inv.paid_date.month == month_start.month and inv.paid_date.year == month_start.year
+    app.logger.info("Accessing dashboard...")
+    try:
+        supplier = Supplier.query.filter_by(user_id=current_user.id).first()
+        
+        # Všetky faktúry tohto používateľa
+        app.logger.info("Loading invoices...")
+        try:
+            invoices = Invoice.query.filter_by(user_id=current_user.id).all()
+            app.logger.info(f"Loaded {len(invoices)} invoices")
+        except Exception as e:
+            app.logger.error(f"Failed to load invoices: {e}")
+            raise e
+        
+        # Aktualizujeme stavy po splatnosti
+        app.logger.info("Checking overdue status...")
+        try:
+            changes_made = False
+            for inv in invoices:
+                # Store original status
+                original_status = inv.status
+                inv.check_overdue()
+                if inv.status != original_status:
+                    changes_made = True
+            
+            if changes_made:
+                db.session.commit()
+                app.logger.info("Overdue statuses updated")
+        except Exception as e:
+            app.logger.error(f"Failed to update overdue status: {e}")
+            # Non-critical, continue
+        
+        # Základné štatistiky
+        total_invoices = len(invoices)
+        paid_invoices = [i for i in invoices if i.status == Invoice.STATUS_PAID]
+        overdue_invoices = [i for i in invoices if i.is_overdue]
+        issued_invoices = [i for i in invoices if i.status == Invoice.STATUS_ISSUED]
+        
+        total_revenue = sum(i.total for i in paid_invoices)
+        total_pending = sum(i.total for i in issued_invoices)
+        total_overdue = sum(i.total for i in overdue_invoices)
+        
+        # === ANALYTICS ===
+        app.logger.info("Calculating analytics...")
+        try:
+            active_invoices = [i for i in invoices if i.status != Invoice.STATUS_CANCELLED]
+            total_invoiced = sum(i.total for i in active_invoices)
+            total_profit = sum(i.profit for i in paid_invoices)
+            total_cost = sum(i.total_cost for i in paid_invoices)
+            expected_income = total_pending
+            
+            # Top odberateľ
+            client_totals = defaultdict(float)
+            for inv in paid_invoices:
+                client_totals[inv.client_id] += inv.total
+            
+            top_client = None
+            top_client_amount = 0
+            if client_totals:
+                top_client_id = max(client_totals, key=client_totals.get)
+                top_client = Client.query.filter_by(id=top_client_id, user_id=current_user.id).first()
+                top_client_amount = client_totals[top_client_id]
+            
+            # Mesačný prehľad
+            monthly_data = []
+            today = date.today()
+            for i in range(5, -1, -1):
+                month_start = date(today.year, today.month, 1) - timedelta(days=30*i)
+                # month_name = month_start.strftime('%b %Y') # Simple string format
+                
+                # Bezpečný výpočet mesiaca
+                month_revenue = sum(
+                    inv.total for inv in paid_invoices 
+                    if inv.paid_date and inv.paid_date.month == month_start.month and inv.paid_date.year == month_start.year
+                )
+                month_profit = sum(
+                    inv.profit for inv in paid_invoices 
+                    if inv.paid_date and inv.paid_date.month == month_start.month and inv.paid_date.year == month_start.year
+                )
+                
+                monthly_data.append({
+                    'month': month_start.strftime('%m/%Y'),
+                    'revenue': month_revenue,
+                    'profit': month_profit
+                })
+        except Exception as e:
+            app.logger.error(f"Analytics calculation failed: {e}")
+            app.logger.error(traceback.format_exc())
+            # Fallback values
+            total_invoiced = 0
+            total_profit = 0
+            total_cost = 0
+            expected_income = 0
+            top_client = None
+            top_client_amount = 0
+            monthly_data = []
+
+        recent_activity = ActivityLog.query.filter_by(user_id=current_user.id).order_by(ActivityLog.created_at.desc()).limit(10).all()
+        recent_invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.created_at.desc()).limit(10).all()
+        
+        return render_template('dashboard.html',
+            supplier=supplier,
+            total_invoices=total_invoices,
+            paid_count=len(paid_invoices),
+            overdue_count=len(overdue_invoices),
+            issued_count=len(issued_invoices),
+            total_revenue=total_revenue,
+            total_pending=total_pending,
+            total_overdue=total_overdue,
+            total_invoiced=total_invoiced,
+            total_profit=total_profit,
+            total_cost=total_cost,
+            expected_income=expected_income,
+            top_client=top_client,
+            top_client_amount=top_client_amount,
+            monthly_data=monthly_data,
+            recent_activity=recent_activity,
+            recent_invoices=recent_invoices
         )
-        month_profit = sum(
-            inv.profit for inv in paid_invoices 
-            if inv.paid_date and inv.paid_date.month == month_start.month and inv.paid_date.year == month_start.year
-        )
-        monthly_data.append({'month': month_name, 'revenue': month_revenue, 'profit': month_profit})
-    
-    recent_activity = ActivityLog.query.filter_by(user_id=current_user.id).order_by(ActivityLog.created_at.desc()).limit(10).all()
-    recent_invoices = Invoice.query.filter_by(user_id=current_user.id).order_by(Invoice.created_at.desc()).limit(10).all()
-    
-    return render_template('dashboard.html',
-        supplier=supplier,
-        total_invoices=total_invoices,
-        paid_count=len(paid_invoices),
-        overdue_count=len(overdue_invoices),
-        issued_count=len(issued_invoices),
-        total_revenue=total_revenue,
-        total_pending=total_pending,
-        total_overdue=total_overdue,
-        total_invoiced=total_invoiced,
-        total_profit=total_profit,
-        total_cost=total_cost,
-        expected_income=expected_income,
-        top_client=top_client,
-        top_client_amount=top_client_amount,
-        monthly_data=monthly_data,
-        recent_activity=recent_activity,
-        recent_invoices=recent_invoices
-    )
+    except Exception as e:
+        app.logger.error(f"CRITICAL DASHBOARD ERROR: {e}")
+        app.logger.error(traceback.format_exc())
+        return render_template('500.html'), 500
 
 
 # ==============================================================================
@@ -471,38 +516,55 @@ def client_delete(client_id):
 @login_required
 def invoices_list():
     """Zoznam faktúr"""
-    status_filter = request.args.get('status', '')
-    search_query = request.args.get('q', '')
-    
-    query = Invoice.query.filter_by(user_id=current_user.id)
-    
-    # Aktualizujeme stavy pred filtrovaním
-    all_invoices = Invoice.query.filter_by(user_id=current_user.id).all()
-    for inv in all_invoices:
-        inv.check_overdue()
-    db.session.commit()
-    
-    # Filtre
-    if status_filter == 'overdue':
-        query = query.filter(Invoice.status == Invoice.STATUS_OVERDUE)
-    elif status_filter:
-        query = query.filter_by(status=status_filter)
-    
-    # Vyhľadávanie
-    if search_query:
-        query = query.join(Client).filter(
-            (Invoice.invoice_number.contains(search_query)) |
-            (Invoice.variable_symbol.contains(search_query)) |
-            (Client.name.contains(search_query))
+    app.logger.info("Accessing invoices list...")
+    try:
+        status_filter = request.args.get('status', '')
+        search_query = request.args.get('q', '')
+        
+        query = Invoice.query.filter_by(user_id=current_user.id)
+        
+        # Aktualizujeme stavy pred filtrovaním
+        try:
+            all_invoices = Invoice.query.filter_by(user_id=current_user.id).all()
+            changes = False
+            for inv in all_invoices:
+                original = inv.status
+                inv.check_overdue()
+                if inv.status != original:
+                    changes = True
+            if changes:
+                db.session.commit()
+                app.logger.info("Overdue statuses updated in list view")
+        except Exception as e:
+            app.logger.error(f"Failed to update overdue status in list: {e}")
+            # Continue anyway
+        
+        # Filtre
+        if status_filter == 'overdue':
+            query = query.filter(Invoice.status == Invoice.STATUS_OVERDUE)
+        elif status_filter:
+            query = query.filter_by(status=status_filter)
+        
+        # Vyhľadávanie
+        if search_query:
+            query = query.join(Client).filter(
+                (Invoice.invoice_number.contains(search_query)) |
+                (Invoice.variable_symbol.contains(search_query)) |
+                (Client.name.contains(search_query))
+            )
+        
+        invoices = query.order_by(Invoice.created_at.desc()).all()
+        app.logger.info(f"Loaded {len(invoices)} invoices for list")
+        
+        return render_template('invoices.html', 
+            invoices=invoices,
+            status_filter=status_filter,
+            search_query=search_query
         )
-    
-    invoices = query.order_by(Invoice.created_at.desc()).all()
-    
-    return render_template('invoices.html', 
-        invoices=invoices,
-        status_filter=status_filter,
-        search_query=search_query
-    )
+    except Exception as e:
+        app.logger.error(f"CRITICAL INVOICE LIST ERROR: {e}")
+        app.logger.error(traceback.format_exc())
+        return render_template('500.html'), 500
 
 
 @app.route('/invoices/add', methods=['GET', 'POST'])
@@ -680,6 +742,39 @@ def invoice_detail(invoice_id):
         app.logger.error(f"CRITICAL ERROR in invoice_detail: {e}")
         app.logger.error(traceback.format_exc())
         raise e  # Let the global handler handle it
+
+
+@app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
+@login_required
+def invoice_send_email(invoice_id):
+    """Odoslanie faktúry emailom"""
+    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+    
+    if not invoice.client.email:
+        flash('Klient nemá nastavený email.', 'error')
+        return redirect(url_for('invoice_detail', invoice_id=invoice.id))
+        
+    subject = f'Faktúra {invoice.invoice_number} - {invoice.supplier.name}'
+    body = f"""Dobrý deň,
+    
+v prílohe Vám posielame faktúru č. {invoice.invoice_number} na sumu {invoice.total} EUR.
+
+Dátum splatnosti: {invoice.due_date.strftime('%d.%m.%Y')}
+Variabilný symbol: {invoice.variable_symbol}
+
+S pozdravom,
+{invoice.supplier.name}
+"""
+    
+    from utils.email_service import send_email
+    
+    if send_email(subject, invoice.client.email, body):
+        flash(f'Faktúra bola odoslaná na {invoice.client.email}', 'success')
+    else:
+        app.logger.error("Failed to send email - check logs")
+        flash('Nepodarilo sa odoslať email. Skontrolujte nastavenia (API kľúč).', 'error')
+        
+    return redirect(url_for('invoice_detail', invoice_id=invoice.id))
 
 
 @app.route('/invoices/<int:invoice_id>/pdf')

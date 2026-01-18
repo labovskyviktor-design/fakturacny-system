@@ -141,6 +141,10 @@ class Invoice(db.Model):
     status = db.Column(db.String(20), default=STATUS_ISSUED)
     paid_date = db.Column(db.Date)  # Dátum úhrady
     
+    # Relácie
+    supplier = db.relationship('Supplier', backref=db.backref('invoices', lazy=True))
+    client = db.relationship('Client', backref=db.backref('invoices', lazy=True))
+    
     # Poznámky
     note = db.Column(db.Text)  # Poznámka na faktúre
     internal_note = db.Column(db.Text)  # Interná poznámka
