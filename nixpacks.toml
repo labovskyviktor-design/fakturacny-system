@@ -1,6 +1,6 @@
 # Railway Nixpacks konfigurácia
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "pango", "cairo", "gdk-pixbuf", "libwebp", "fontconfig", "libffi", "glib", "shared-mime-info", "libxml2", "libxslt", "harfbuzz", "fribidi"]
+nixPkgs = ["python311", "gcc", "postgresql", "pango", "cairo", "gdk-pixbuf", "libwebp", "fontconfig", "libffi", "glib", "shared-mime-info", "libxml2", "libxslt", "harfbuzz", "fribidi", "gtk3", "gobject-introspection"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]

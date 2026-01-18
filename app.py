@@ -800,7 +800,7 @@ def _get_invoice_pdf_data(invoice):
         trace_msg = traceback.format_exc()
         app.logger.error(f"WeasyPrint PDF generation failed: {error_msg}\n{trace_msg}")
         # Ak WeasyPrint zlyhá, vrátime HTML a chybovú správu
-        return html.encode('utf-8'), "text/html", f"{error_msg} (Check logs for traceback)"
+        return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
 
 @app.route('/debug/pdf-test')
 @login_required
