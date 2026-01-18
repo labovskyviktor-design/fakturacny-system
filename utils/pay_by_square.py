@@ -170,63 +170,37 @@ def generate_qr_code_base64(
     currency: str = 'EUR'
 ) -> Optional[str]:
     """
-    Generuje QR kód ako Base64 PNG obrázok pomocou FreeBySquare API.
-    
-    Returns:
-        Data URI string pre img src, alebo None pri chybe
+    Generuje PAY by square QR kód lokálne podľa SBA špecifikácie.
+    Nahrádza pôvodnú externú službu pre vyššiu spoľahlivosť.
     """
     try:
-        import requests
-        from urllib.parse import urlencode
+        from utils.helpers import generate_pay_by_square
         
-        # Očistíme IBAN od medzier
-        iban = iban.replace(' ', '').replace('-', '').upper()
+        # Očistíme IBAN
+        iban = iban.replace(' ', '').upper()
         
-        # Pripravíme parametre pre API
-        params = {
-            'size': 300,
-            'color': 3,  # Čierna
-            'transparent': 'false',
-            'amount': f'{amount:.2f}',
-            'currencyCode': currency,
-            'iban': iban,
-            'beneficiaryName': beneficiary_name[:70] if beneficiary_name else '',
-        }
-        
-        # Pridanie voliteľných parametrov
-        if due_date:
-            params['dueDate'] = due_date.replace('-', '')  # Formát YYYYMMDD
-        if variable_symbol:
-            params['variableSymbol'] = variable_symbol
-        if constant_symbol:
-            params['constantSymbol'] = constant_symbol
-        if specific_symbol:
-            params['specificSymbol'] = specific_symbol
-        if note:
-            params['paymentNote'] = note[:140]
-        if beneficiary_address_1:
-            params['beneficiaryAddressLine1'] = beneficiary_address_1[:70]
-        if beneficiary_address_2:
-            params['beneficiaryAddressLine2'] = beneficiary_address_2[:70]
-        
-        # Pošleme GET request na FreeBySquare API
-        url = 'https://api.freebysquare.sk/pay/v1/generate-png'
-        response = requests.get(url, params=params, timeout=10)
-        
-        if response.status_code == 200:
-            # Konvertujeme PNG obrázok na Base64
-            b64_string = base64.b64encode(response.content).decode('ascii')
-            return f'data:image/png;base64,{b64_string}'
-        else:
-            print(f'FreeBySquare API error: {response.status_code} - {response.text}')
-            return None
+        # Konvertujeme dátum ak je to string
+        if isinstance(due_date, str):
+            due_date = due_date.replace('-', '')
+            
+        qr_data_uri = generate_pay_by_square(
+            amount=amount,
+            iban=iban,
+            swift=swift,
+            variable_symbol=variable_symbol,
+            constant_symbol=constant_symbol,
+            specific_symbol=specific_symbol,
+            note=note,
+            beneficiary_name=beneficiary_name,
+            due_date=due_date
+        )
+        return qr_data_uri
         
     except Exception as e:
-        print(f'Chyba pri generovaní QR: {e}')
+        print(f"Chyba pri lokálnom generovaní QR: {e}")
         import traceback
         traceback.print_exc()
         return None
-
 
 def generate_sepa_qr(
     amount: float,

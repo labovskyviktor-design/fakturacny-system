@@ -203,12 +203,11 @@ def generate_pay_by_square(
     
     img = qr.make_image(fill_color="black", back_color="white")
     
-    # Konvertujeme na base64
     buffer = io.BytesIO()
     img.save(buffer, format='PNG')
     buffer.seek(0)
     
-    return base64.b64encode(buffer.getvalue()).decode('utf-8')
+    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('utf-8')}"
 
 
 def _create_payment_string(
