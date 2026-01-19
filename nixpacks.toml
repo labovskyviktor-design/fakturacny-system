@@ -1,12 +1,9 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "gdk-pixbuf", "libffi", "libxml2", "libxslt", "shared-mime-info", "glib", "gobject-introspection", "gtk3", "findutils"]
+nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "libffi", "libxml2", "libxslt"]
 
 [phases.build]
 cmds = [
-    "pip install -r requirements.txt",
-    "echo '--- SHARED LIBRARY DISCOVERY (FOR RAILWAY VARIABLES) ---'",
-    "find /nix/store -name 'libgobject-2.0.so.0' -type f -print -quit || echo 'Not found in Nix store'",
-    "echo '--- END DISCOVERY ---'"
+    "pip install -r requirements.txt"
 ]
 
 [variables]
