@@ -776,48 +776,50 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Dynamické nastavenie ciest pre knižnice (Railway/Nix workaround)
+    # Multi-Engine PDF Generovanie (WeasyPrint -> xhtml2pdf fallback)
     try:
+        # 0. Nastavenie ciest (Railway workaround)
         import os
         import subprocess
+        import shutil
         
-        # Ak sme na linuxe a nevidíme knižnice, skúsime ich nájsť
-        if os.name != 'nt' and not os.environ.get('WEASYPRINT_PREPARED'):
-            app.logger.info("Searching for shared libraries for WeasyPrint...")
+        if os.name != 'nt' and not os.environ.get('PDF_LIBS_READY'):
             try:
-                # Nájdeme cestu k libgobject
-                find_cmd = ['find', '/nix/store', '-name', 'libgobject-2.0.so.0', '-type', 'f', '-print', '-quit']
-                lib_path = subprocess.run(find_cmd, capture_output=True, text=True, timeout=10).stdout.strip()
-                
-                if lib_path:
-                    lib_dir = os.path.dirname(lib_path)
-                    current_ld = os.environ.get('LD_LIBRARY_PATH', '')
-                    if lib_dir not in current_ld:
-                        os.environ['LD_LIBRARY_PATH'] = f"{lib_dir}:{current_ld}"
-                        app.logger.info(f"Added {lib_dir} to LD_LIBRARY_PATH")
-                
-                os.environ['WEASYPRINT_PREPARED'] = '1'
-            except Exception as fe:
-                app.logger.warning(f"Library sniffing failed: {fe}")
-    except: pass
+                # Skúsime nájsť kde sa skrýva libgobject (v Nix store má náhodný hash)
+                res = subprocess.run(['find', '/nix/store', '-name', 'libgobject-2.0.so.0', '-type', 'f', '-print', '-quit'], 
+                                   capture_output=True, text=True, timeout=5)
+                if res.stdout.strip():
+                    lib_dir = os.path.dirname(res.stdout.strip())
+                    os.environ['LD_LIBRARY_PATH'] = f"{lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+            except: pass
+            os.environ['PDF_LIBS_READY'] = '1'
 
-    # Generovanie PDF cez WeasyPrint (čisto v Pythone, bez externých binárnych potrieb)
-    try:
-        from weasyprint import HTML
-        import io
-        
-        app.logger.info("Generating PDF via WeasyPrint")
-        
-        # WeasyPrint priamo konvertuje HTML reťazec na PDF bajty
-        # Používame base_url, aby WeasyPrint vedel nájsť lokálne súbory (ak by boli treba)
-        pdf_bytes = HTML(string=html).write_pdf()
-        
-        return pdf_bytes, "application/pdf", True
+        # ENGINE 1: WeasyPrint (Preferovaný - najvyššia kvalita)
+        try:
+            from weasyprint import HTML
+            app.logger.info("Trying PDF generation via WeasyPrint...")
+            pdf_bytes = HTML(string=html).write_pdf()
+            return pdf_bytes, "application/pdf", True
+        except Exception as we_err:
+            app.logger.warning(f"WeasyPrint failed (missing libs?): {we_err}")
+            
+            # ENGINE 2: xhtml2pdf (Fallback - čistý Python, nepotrebuje systémové knižnice)
+            from xhtml2pdf import pisa
+            import io
+            app.logger.info("Falling back to xhtml2pdf (Pure Python)...")
+            
+            result_file = io.BytesIO()
+            pisa_status = pisa.CreatePDF(io.BytesIO(html.encode('utf-8')), dest=result_file)
+            
+            if not pisa_status.err:
+                return result_file.getvalue(), "application/pdf", True
+            else:
+                raise Exception(f"xhtml2pdf failed: {pisa_status.err}")
                 
     except Exception as e:
-        app.logger.error(f"WeasyPrint PDF failed: {str(e)}")
-        # Ak zlyhá všetko, vrátime HTML s chybou
-        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed (WeasyPrint): {str(e)}"
+        app.logger.error(f"All PDF engines failed: {str(e)}")
+        # Ak zlyhá všetko, aspoň vrátime HTML faktúru
+        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -827,58 +829,64 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        import ctypes.util
-        import sys
-        import os
-        import subprocess
+        import ctypes.util, sys, os, subprocess
         
-        # Sniffing pred importom WeasyPrint
+        # 1. Hľadáme cestu (Discovery)
+        lib_path = "NOT FOUND"
         if os.name != 'nt':
             try:
-                find_cmd = ['find', '/nix/store', '-name', 'libgobject-2.0.so.0', '-type', 'f', '-print', '-quit']
-                lib_path = subprocess.run(find_cmd, capture_output=True, text=True, timeout=5).stdout.strip()
-                if lib_path:
-                    lib_dir = os.path.dirname(lib_path)
-                    os.environ['LD_LIBRARY_PATH'] = f"{lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+                res = subprocess.run(['find', '/nix/store', '-name', 'libgobject-2.0.so.0', '-type', 'f', '-print', '-quit'], 
+                                   capture_output=True, text=True, timeout=5)
+                lib_path = res.stdout.strip() or "NOT FOUND"
             except: pass
+            
+        suggested_path = os.path.dirname(lib_path) if lib_path != "NOT FOUND" else "/usr/lib"
+        
+        # 2. Skúsime obe engine
+        results = {}
+        
+        # Weasy (Primary)
+        try:
+            from weasyprint import HTML
+            HTML(string="<h1>Test</h1>").write_pdf()
+            results['WeasyPrint'] = "SUCCESS ✅"
+        except Exception as e:
+            results['WeasyPrint'] = f"FAILED ❌ ({str(e)})"
+            
+        # xhtml2pdf (Fallback)
+        try:
+            from xhtml2pdf import pisa
+            import io
+            pisa.CreatePDF(io.BytesIO(b"<h1>Test</h1>"), dest=io.BytesIO())
+            results['xhtml2pdf'] = "SUCCESS ✅"
+        except Exception as e:
+            results['xhtml2pdf'] = f"FAILED ❌ ({str(e)})"
 
-        from weasyprint import HTML
-        
-        # Dialgnostika knižníc
-        libs = ['gobject-2.0', 'pango-1.0', 'cairo', 'gdk_pixbuf-2.0']
-        found_libs = {lib: ctypes.util.find_library(lib) for lib in libs}
-        
-        diag = {
-            "Python": sys.version,
-            "LD_LIBRARY_PATH": os.environ.get('LD_LIBRARY_PATH', 'NOT SET'),
-            "Found Libraries": found_libs,
-            "UID": os.getuid() if hasattr(os, 'getuid') else 'N/A'
-        }
-        
-        html_content = f"""
+        html_diag = f"""
         <html>
-            <head><meta charset="UTF-8"></head>
-            <body>
-                <h1>WeasyPrint Diagnostics (v2)</h1>
-                <pre>{str(diag)}</pre>
-                <p>Ak toto vidíte ako PDF, WeasyPrint funguje perfektne!</p>
+            <body style="font-family: sans-serif; padding: 20px; line-height: 1.6;">
+                <h1 style="color: #1e40af;">PDF Engine Status</h1>
+                <ul>
+                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in results.items()])}
+                </ul>
+                
+                <div style="background: #f8fafc; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 20px;">
+                    <h2 style="color: #0f172a;">⚠️ AK WEASYPRINT ZLYHÁVA (Missing Library):</h2>
+                    <p>Pridajte v Railway Dashboard (Variables) túto premennú:</p>
+                    <code style="display: block; background: #000; color: #0f0; padding: 10px; border-radius: 4px;">
+                        NAME: LD_LIBRARY_PATH<br>
+                        VALUE: {suggested_path}
+                    </code>
+                    <p><i>Cesta nájdená na disku: {lib_path}</i></p>
+                </div>
             </body>
         </html>
         """
-        
-        pdf_output = HTML(string=html_content).write_pdf()
-        response = make_response(pdf_output)
-        response.headers['Content-Type'] = 'application/pdf'
-        return response
+        return html_diag
 
     except Exception as e:
         import traceback
-        diag_err = {
-            "Error": str(e),
-            "LD_LIBRARY_PATH": os.environ.get('LD_LIBRARY_PATH', 'NOT SET'),
-            "Path Contents /usr/lib": os.listdir('/usr/lib')[:10] if os.path.exists('/usr/lib') else 'N/A'
-        }
-        return f"<h1>WeasyPrint Failure</h1><pre>{str(diag_err)}</pre><hr><pre>{traceback.format_exc()}</pre>", 500
+        return f"<h1>Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])

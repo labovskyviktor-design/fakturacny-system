@@ -3,13 +3,14 @@ nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "font
 
 [phases.build]
 cmds = [
-    "pip install -r requirements.txt"
+    "pip install -r requirements.txt",
+    "echo '--- SHARED LIBRARY DISCOVERY (FOR RAILWAY VARIABLES) ---'",
+    "find /nix/store -name 'libgobject-2.0.so.0' -type f -print -quit || echo 'Not found in Nix store'",
+    "echo '--- END DISCOVERY ---'"
 ]
 
 [variables]
 PYTHONPATH = ".:$PYTHONPATH"
-LD_LIBRARY_PATH = "/usr/lib:/usr/local/lib:/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
-GI_TYPELIB_PATH = "/usr/lib/girepository-1.0:/usr/local/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
