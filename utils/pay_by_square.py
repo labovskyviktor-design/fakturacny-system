@@ -36,14 +36,19 @@ def generate_qr_code_external(
         # Ensure it is string and remove dashes if present
         date_str = str(due_date).replace('-', '')
         
+        # Sanitize Symbols (Must be numeric only)
+        def clean_symbol(sym):
+            if not sym: return ''
+            return "".join(filter(str.isdigit, str(sym)))
+            
         params = {
             'amount': f"{amount:.2f}",
             'iban': iban,
             'currencyCode': currency,
             'dueDate': date_str,
-            'variableSymbol': variable_symbol,
-            'constantSymbol': constant_symbol,
-            'specificSymbol': specific_symbol,
+            'variableSymbol': clean_symbol(variable_symbol),
+            'constantSymbol': clean_symbol(constant_symbol),
+            'specificSymbol': clean_symbol(specific_symbol),
             'paymentNote': note,
             'beneficiaryName': beneficiary_name,
             'beneficiaryAddressLine1': beneficiary_address_1,
