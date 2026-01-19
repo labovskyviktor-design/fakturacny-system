@@ -2,38 +2,18 @@
 nixPkgs = [
     "python311",
     "gcc",
-    "postgresql",
-    "pkg-config",
-    "gobject-introspection",
-    "weasyprint",
-    "pango",
-    "cairo",
-    "gdk-pixbuf",
-    "glib",
-    "libffi",
-    "harfbuzz",
-    "fribidi",
-    "fontconfig",
-    "freetype",
-    "dejavu_fonts",
-    "liberation_ttf",
-    "xorg.libX11",
-    "xorg.libXrender"
+    "postgresql"
 ]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = [
+    "pip install -r requirements.txt",
+    "playwright install --with-deps chromium"
+]
 
 [variables]
 PYTHONPATH = "."
-# Enhanced library paths for WeasyPrint and GObject
-LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:/nix/store/*-glib-*/lib:/nix/store/*-cairo-*/lib:/nix/store/*-pango-*/lib:$LD_LIBRARY_PATH"
-LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:$LIBRARY_PATH"
-PKG_CONFIG_PATH = "/nix/var/nix/profiles/default/lib/pkgconfig:$PKG_CONFIG_PATH"
-XDG_DATA_DIRS = "/nix/var/nix/profiles/default/share:$XDG_DATA_DIRS"
-GI_TYPELIB_PATH = "/nix/var/nix/profiles/default/lib/girepository-1.0"
-FONTCONFIG_FILE = "/nix/var/nix/profiles/default/etc/fonts/fonts.conf"
-FONTCONFIG_PATH = "/nix/var/nix/profiles/default/etc/fonts"
 
 [start]
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
+

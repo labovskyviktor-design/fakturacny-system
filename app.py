@@ -754,7 +754,7 @@ def invoice_detail(invoice_id):
 
 
 def _get_invoice_pdf_data(invoice):
-    """Pomocná funkcia na generovanie PDF dát faktúry"""
+    """Pomocná funkcia na generovanie PDF dát faktúry - Playwright verzia"""
     # Generujeme QR kód
     qr_code = None
     if invoice.payment_method == 'prevod' and invoice.supplier.iban:
@@ -776,76 +776,66 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # --- ENHANCED PDF GENERATION WITH DIAGNOSTICS ---
+    # --- PLAYWRIGHT PDF GENERATION (HEADLESS CHROME) ---
     app.logger.info("=" * 60)
     app.logger.info(f"Starting PDF generation for invoice {invoice.invoice_number}")
+    app.logger.info("Using Playwright (Headless Chromium)")
     
-    # Pre-flight diagnostics
     try:
-        from utils.pdf_diagnostics import verify_pdf_environment
-        success, diagnostics = verify_pdf_environment()
+        from playwright.sync_api import sync_playwright
         
-        if not success:
-            app.logger.warning("PDF environment check failed!")
-            for error in diagnostics.get('errors', []):
-                app.logger.error(f"  - {error}")
-        else:
-            app.logger.info("PDF environment check passed ✓")
+        app.logger.info("Playwright imported successfully")
+        
+        with sync_playwright() as p:
+            app.logger.info("Launching Chromium browser...")
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-setuid-sandbox']
+            )
             
-    except Exception as diag_error:
-        app.logger.warning(f"Could not run diagnostics: {diag_error}")
-    
-    # Attempt PDF generation
-    try:
-        from weasyprint import HTML
-        import io
-        
-        app.logger.info("WeasyPrint imported successfully")
-        app.logger.info(f"Base URL: {os.path.dirname(os.path.realpath(__file__))}")
-        
-        # Log environment for debugging
-        app.logger.info(f"LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH', 'NOT SET')}")
-        app.logger.info(f"FONTCONFIG_FILE: {os.environ.get('FONTCONFIG_FILE', 'NOT SET')}")
-        
-        base_url = os.path.dirname(os.path.realpath(__file__))
-        
-        app.logger.info("Creating PDF from HTML...")
-        pdf_file = io.BytesIO()
-        HTML(string=html, base_url=base_url).write_pdf(
-            target=pdf_file,
-            presentational_hints=True
-        )
-        
-        pdf_data = pdf_file.getvalue()
-        pdf_size = len(pdf_data)
-        
-        app.logger.info(f"✓ PDF generated successfully! Size: {pdf_size} bytes")
-        app.logger.info("=" * 60)
-        
-        return pdf_data, "application/pdf", True
+            page = browser.new_page()
+            app.logger.info("Setting HTML content...")
+            page.set_content(html, wait_until='networkidle')
+            
+            app.logger.info("Generating PDF...")
+            pdf_bytes = page.pdf(
+                format='A4',
+                print_background=True,
+                margin={
+                    'top': '0',
+                    'right': '0',
+                    'bottom': '0',
+                    'left': '0'
+                }
+            )
+            
+            browser.close()
+            
+            pdf_size = len(pdf_bytes)
+            app.logger.info(f"✓ PDF generated successfully! Size: {pdf_size} bytes")
+            app.logger.info("=" * 60)
+            
+            return pdf_bytes, "application/pdf", True
                 
     except ImportError as e:
-        error_msg = f"WeasyPrint import failed: {str(e)}"
+        error_msg = f"Playwright import failed: {str(e)}"
         app.logger.error(f"IMPORT ERROR: {error_msg}")
-        app.logger.error("This usually means WeasyPrint is not installed or system libraries are missing")
+        app.logger.error("Run: pip install playwright && playwright install chromium")
         app.logger.error(traceback.format_exc())
         app.logger.info("=" * 60)
         return html.encode('utf-8'), "text/html", error_msg
         
     except Exception as e:
         error_msg = f"PDF generation failed: {str(e)}"
-        app.logger.error(f"WEASYPRINT FAILURE: {error_msg}")
+        app.logger.error(f"PLAYWRIGHT FAILURE: {error_msg}")
         app.logger.error("Full traceback:")
         app.logger.error(traceback.format_exc())
         
         # Try to provide more specific error information
-        error_type = type(e).__name__
-        if 'cairo' in str(e).lower():
-            app.logger.error("→ This appears to be a Cairo library issue")
-        elif 'pango' in str(e).lower():
-            app.logger.error("→ This appears to be a Pango library issue")
-        elif 'font' in str(e).lower():
-            app.logger.error("→ This appears to be a font-related issue")
+        if 'executable' in str(e).lower():
+            app.logger.error("→ Chromium browser not found. Run: playwright install chromium")
+        elif 'timeout' in str(e).lower():
+            app.logger.error("→ Page load timeout. Check HTML template complexity.")
         
         app.logger.info("=" * 60)
         return html.encode('utf-8'), "text/html", error_msg
