@@ -27,17 +27,14 @@ def generate_qr_code_external(
     currency: str = 'EUR'
 ) -> Optional[str]:
     """
-    Hybridná metóda:
-    1. Získa validný Bysquare string z externého API (generate-string)
-    2. Vygeneruje QR kód z tohto stringu lokálne (pre istotu kvality)
+    Získa ORIGINÁLNE PNG (Brandované) z freebysquare.sk API (GET metóda)
     """
     try:
-        # 1. Získanie stringu z API
-        api_url = "https://api.freebysquare.sk/pay/v1/generate-string"
+        api_url = "https://api.freebysquare.sk/pay/v1/generate-png"
         
-        # Format date for GET param (YYYYMMDD) - revert back from ISO if needed
-        # App sends YYYYMMDD usually, so just ensure it is string
-        date_str = str(due_date).replace('-', '') 
+        # Format date for GET param (YYYYMMDD)
+        # Ensure it is string and remove dashes if present
+        date_str = str(due_date).replace('-', '')
         
         params = {
             'amount': f"{amount:.2f}",
@@ -51,9 +48,12 @@ def generate_qr_code_external(
             'beneficiaryName': beneficiary_name,
             'beneficiaryAddressLine1': beneficiary_address_1,
             'beneficiaryAddressLine2': beneficiary_address_2,
+            'size': 300,        # Explicit size
+            'color': '1',       # Black
+            'transparent': 'false' 
         }
         
-        # Remove empty params to be clean
+        # Remove empty params
         params = {k: v for k, v in params.items() if v}
         
         headers = {
@@ -61,38 +61,26 @@ def generate_qr_code_external(
             'Referer': 'https://fakturask.sk/'
         }
 
-        print(f"Hybrid QR: Fetching string from {api_url}...")
+        print(f"Fetching Original PNG from {api_url}...")
         response = requests.get(api_url, params=params, headers=headers, timeout=10)
         
         if response.status_code == 200:
-            qr_string = response.text.strip()
-            print(f"Hybrid QR: Got string len={len(qr_string)}")
-            
-            # 2. Lokálne renderovanie QR kódu
-            qr = qrcode.QRCode(
-                version=None,
-                error_correction=qrcode.constants.ERROR_CORRECT_M,
-                box_size=10,
-                border=4,
-            )
-            qr.add_data(qr_string)
-            qr.make(fit=True)
-            
-            img = qr.make_image(fill_color="black", back_color="white")
-            
-            buffer = BytesIO()
-            img.save(buffer, format='PNG')
-            buffer.seek(0)
-            
-            b64_string = base64.b64encode(buffer.getvalue()).decode('ascii')
-            return f"data:image/png;base64,{b64_string}"
+            png_bytes = response.content
+            # Check magic bytes for PNG
+            if png_bytes.startswith(b'\x89PNG'):
+                print("✓ Original PNG received successfully")
+                b64_string = base64.b64encode(png_bytes).decode('ascii')
+                return f"data:image/png;base64,{b64_string}"
+            else:
+                 print(f"API returned 200 but content is not PNG (Prefix: {png_bytes[:10]})")
+                 return None
             
         else:
-            print(f"Hybrid QR API Error: {response.status_code} - {response.text}")
+            print(f"API Error: {response.status_code} - {response.text}")
             return None
 
     except Exception as e:
-        print(f"Chyba pri Hybrid QR: {e}")
+        print(f"Chyba pri získavaní PNG: {e}")
         return None
 
 
