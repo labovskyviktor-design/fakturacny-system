@@ -779,9 +779,27 @@ def _get_invoice_pdf_data(invoice):
     # Použijeme pdfkit (wkhtmltopdf wrapper) pre vysokú kvalitu a zachovanie dizajnu
     try:
         import pdfkit
+        import shutil
+        import os
         
         # Konfigurácia pdfkit pre Railway
-        # wkhtmltopdf by mal byť v PATH po pridaní do nixpacks.toml
+        # Pokúsime sa nájsť wkhtmltopdf binárku
+        wkhtmltopdf_path = shutil.which('wkhtmltopdf')
+        
+        # V Nix prostredí môže byť cesta špecifická
+        if not wkhtmltopdf_path:
+            # Skúsime bežné Nix cesty ak which zlyhá
+            nix_paths = [
+                "/usr/bin/wkhtmltopdf",
+                "/usr/local/bin/wkhtmltopdf"
+            ]
+            for p in nix_paths:
+                if os.path.exists(p):
+                    wkhtmltopdf_path = p
+                    break
+                    
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
+        
         options = {
             'page-size': 'A4',
             'margin-top': '0.75in',
@@ -790,16 +808,20 @@ def _get_invoice_pdf_data(invoice):
             'margin-left': '0.75in',
             'encoding': "UTF-8",
             'no-outline': None,
-            'quiet': ''
+            'quiet': '',
+            'enable-local-file-access': None,
+            'disable-smart-shrinking': None
         }
         
-        # Ak sme na Railway, wkhtmltopdf by mal byť prístupný
-        pdf_data = pdfkit.from_string(html, False, options=options)
+        # Generujeme PDF
+        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
         return pdf_data, "application/pdf", True
         
     except Exception as e:
         error_msg = str(e)
-        app.logger.error(f"pdfkit generation failed: {error_msg}")
+        import traceback
+        trace_msg = traceback.format_exc()
+        app.logger.error(f"pdfkit generation failed: {error_msg}\n{trace_msg}")
         
     # Ak zlyhá aj pdfkit, vrátime HTML s chybou
     return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
