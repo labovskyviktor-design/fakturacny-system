@@ -776,26 +776,18 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Použijeme pdfkit (wkhtmltopdf wrapper) pre vysokú kvalitu a zachovanie dizajnu
+    # Konfigurácia a generovanie PDF
     try:
         import pdfkit
         import shutil
         import os
         
-        # Konfigurácia pdfkit pre rôzne prostredia
-        # 1. Skúsime explicitne nastavenú cestu v environment variable
-        wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH')
+        # 1. Skúsime pdfkit (wkhtmltopdf) - najvyššia kvalita
+        wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
         
-        # 2. Ak nie je nastavená, skúsime ju nájsť v systéme
-        if not wkhtmltopdf_path:
-            wkhtmltopdf_path = shutil.which('wkhtmltopdf')
-        
-        # 3. Ak stále nemáme (napr. na Railway/Nix), skúsime bežné cesty
         if not wkhtmltopdf_path:
             potential_paths = [
-                "/usr/bin/wkhtmltopdf",
-                "/usr/local/bin/wkhtmltopdf",
-                "/opt/bin/wkhtmltopdf",
+                "/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf",
                 "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe",
                 "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
             ]
@@ -805,39 +797,50 @@ def _get_invoice_pdf_data(invoice):
                     break
         
         if wkhtmltopdf_path:
-            app.logger.info(f"Using wkhtmltopdf at: {wkhtmltopdf_path}")
+            app.logger.info(f"Using pdfkit with binary at: {wkhtmltopdf_path}")
+            config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+            options = {
+                'page-size': 'A4',
+                'orientation': 'Portrait',
+                'margin-top': '0.6in',
+                'margin-right': '0.6in',
+                'margin-bottom': '0.6in',
+                'margin-left': '0.6in',
+                'encoding': "UTF-8",
+                'no-outline': None,
+                'quiet': '',
+                'enable-local-file-access': None,
+                'disable-smart-shrinking': None,
+                'zoom': '1.0',
+                'dpi': '96'
+            }
+            pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+            return pdf_data, "application/pdf", True
         else:
-            app.logger.warning("wkhtmltopdf executable not found in PATH or standard locations.")
-            
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
-        
-        options = {
-            'page-size': 'A4',
-            'margin-top': '0.6in',
-            'margin-right': '0.6in',
-            'margin-bottom': '0.6in',
-            'margin-left': '0.6in',
-            'encoding': "UTF-8",
-            'no-outline': None,
-            'quiet': '',
-            'enable-local-file-access': None,
-            'disable-smart-shrinking': None,
-            'zoom': '1.0',
-            'dpi': '96'
-        }
-        
-        # Generujeme PDF
-        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
-        return pdf_data, "application/pdf", True
-        
+            app.logger.warning("wkhtmltopdf not found, trying xhtml2pdf fallback...")
+
     except Exception as e:
-        error_msg = str(e)
-        import traceback
-        trace_msg = traceback.format_exc()
-        app.logger.error(f"pdfkit generation failed: {error_msg}\n{trace_msg}")
+        app.logger.error(f"pdfkit failed: {str(e)}")
+
+    # 2. Skúsime xhtml2pdf (pure-python fallback) - spoľahlivé na serveri
+    try:
+        from xhtml2pdf import pisa
+        import io
         
-    # Ak zlyhá aj pdfkit, vrátime HTML s chybou
-    return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
+        app.logger.info("Generating PDF using xhtml2pdf fallback...")
+        pdf_buffer = io.BytesIO()
+        pisa_status = pisa.CreatePDF(io.BytesIO(html.encode("utf-8")), dest=pdf_buffer, encoding='utf-8')
+        
+        if not pisa_status.err:
+            return pdf_buffer.getvalue(), "application/pdf", True
+        else:
+            app.logger.error(f"xhtml2pdf failed with status: {pisa_status.err}")
+    except Exception as e:
+        app.logger.error(f"xhtml2pdf fallback failed: {str(e)}")
+
+    # 3. Posledná záchrana - HTML
+    app.logger.error("All PDF generation methods failed. Returning HTML fallback.")
+    return html.encode('utf-8'), "text/html", "ERROR: Nepodarilo sa vygenerovať PDF. Skúste neskôr."
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -850,8 +853,17 @@ def debug_pdf_test():
         import pdfkit
         import shutil
         import os
+        import sys
         
-        # Discovery logic similar to _get_invoice_pdf_data
+        # Diagnostics
+        diag = {
+            "sys.executable": sys.executable,
+            "PATH": os.environ.get('PATH', ''),
+            "WKHTMLTOPDF_PATH_ENV": os.environ.get('WKHTMLTOPDF_PATH', ''),
+            "shutil.which('wkhtmltopdf')": shutil.which('wkhtmltopdf')
+        }
+        
+        # Forced Portrait logic
         wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
         if not wkhtmltopdf_path:
             for p in ["/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf", 
@@ -861,28 +873,43 @@ def debug_pdf_test():
                     wkhtmltopdf_path = p
                     break
         
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
+        diag["Detected Path"] = wkhtmltopdf_path
         
-        html_content = """
+        html_content = f"""
         <html>
             <head><meta charset="UTF-8"></head>
             <body>
-                <h1 style="color: #1e40af;">PDFKit Test</h1>
-                <p>Ak toto vidíte s modrým nadpisom a správnou diakritikou (čšž), PDFKit na serveri funguje perfektne!</p>
-                <p>Cesta k binárke: <code>""" + str(wkhtmltopdf_path) + """</code></p>
+                <h1 style="color: #1e40af;">PDF Generation Diagnostics</h1>
+                <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
+                    {"".join([f"<tr><td><b>{k}</b></td><td><pre>{v}</pre></td></tr>" for k, v in diag.items()])}
+                </table>
+                <hr>
+                <p>Ak toto vidíte ako PDF na výšku, všetko funguje správne.</p>
             </body>
         </html>
         """
-        options = {'encoding': "UTF-8", 'quiet': ''}
-        pdf_output = pdfkit.from_string(html_content, False, configuration=config, options=options)
+        
+        options = {'encoding': "UTF-8", 'quiet': '', 'orientation': 'Portrait'}
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else None
+        
+        try:
+            pdf_output = pdfkit.from_string(html_content, False, configuration=config, options=options)
+            app.logger.info("Debug PDF generated via pdfkit")
+        except Exception as e:
+            app.logger.warning(f"Debug PDF via pdfkit failed: {e}. Trying xhtml2pdf fallback...")
+            from xhtml2pdf import pisa
+            import io
+            pdf_buffer = io.BytesIO()
+            pisa.CreatePDF(io.BytesIO(html_content.encode("utf-8")), dest=pdf_buffer, encoding='utf-8')
+            pdf_output = pdf_buffer.getvalue()
         
         response = make_response(pdf_output)
         response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'inline; filename=test.pdf'
+        response.headers['Content-Disposition'] = 'inline; filename=debug_test.pdf'
         return response
     except Exception as e:
         import traceback
-        return f"PDF Test zlyhal: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+        return f"PDF Test zlyhal kriticky: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
