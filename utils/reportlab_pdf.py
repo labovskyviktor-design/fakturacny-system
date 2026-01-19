@@ -54,6 +54,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     font_bold = 'Helvetica-Bold'
     font_loading_error = None
     
+    try:
         # FORCE LOCAL FONTS (Verdana/DejaVu bundle)
         # System fonts failed, so we rely on the bundled file.
         
