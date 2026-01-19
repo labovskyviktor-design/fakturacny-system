@@ -1,13 +1,9 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "wkhtmltopdf", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext"]
+nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "gdk-pixbuf", "libffi", "shared-mime-info", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
 
 [phases.build]
 cmds = [
-    "pip install -r requirements.txt",
-    # Nájdeme binárky a uložíme ich absolútne cesty do súborov pre Python
-    "which chromium > chromium_path.txt || find /nix/store -name chromium -type f -executable -print -quit > chromium_path.txt || echo '/usr/bin/chromium' > chromium_path.txt",
-    "which wkhtmltopdf > wkhtmltopdf_path.txt || find /nix/store -name wkhtmltopdf -type f -executable -print -quit > wkhtmltopdf_path.txt || echo '/usr/bin/wkhtmltopdf' > wkhtmltopdf_path.txt",
-    "echo 'Binaries located during build:' && cat chromium_path.txt && cat wkhtmltopdf_path.txt"
+    "pip install -r requirements.txt"
 ]
 
 [variables]

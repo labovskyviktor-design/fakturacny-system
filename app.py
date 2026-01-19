@@ -776,103 +776,23 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez Headless Chromium
+    # Generovanie PDF cez WeasyPrint (čisto v Pythone, bez externých binárnych potrieb)
     try:
-        import subprocess
-        import tempfile
-        import os
-        import shutil
+        from weasyprint import HTML
+        import io
         
-        # 1. Hľadáme Chromium binárku - TIERED DISCOVERY
-        chrome_path = os.environ.get('CHROME_PATH')
+        app.logger.info("Generating PDF via WeasyPrint")
         
-        # Skúsime prečítať manifest z buildu ak CHROME_PATH nie je nastavená
-        if not chrome_path or not os.path.exists(chrome_path):
-            manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromium_path.txt')
-            if os.path.exists(manifest_path):
-                with open(manifest_path, 'r') as f:
-                    p = f.read().strip()
-                if p and os.path.exists(p):
-                    chrome_path = p
-                    app.logger.info(f"Chromium path from manifest: {chrome_path}")
-
-        # Skúsime shutil.which
-        if not chrome_path:
-            chrome_path = shutil.which('chromium') or shutil.which('google-chrome')
-            
-        # Skúsime nájsť na disku (Nix store)
-        if not chrome_path and os.name != 'nt':
-            try:
-                find_res = subprocess.run(['find', '/nix/store', '-name', 'chromium', '-type', 'f', '-executable'], 
-                                       capture_output=True, text=True, timeout=10)
-                if find_res.stdout:
-                    chrome_path = find_res.stdout.splitlines()[0]
-                    app.logger.info(f"Chromium path found via find: {chrome_path}")
-            except Exception as e:
-                app.logger.warning(f"Find command failed: {e}")
-
-        if not (chrome_path and os.path.exists(chrome_path)):
-            app.logger.error("Chromium binary not found everywhere.")
-            raise Exception("Chromium not found. Check build logs for 'Binaries located during build'.")
-            
-        app.logger.info(f"Using Chromium for PDF: {chrome_path}")
+        # WeasyPrint priamo konvertuje HTML reťazec na PDF bajty
+        # Používame base_url, aby WeasyPrint vedel nájsť lokálne súbory (ak by boli treba)
+        pdf_bytes = HTML(string=html).write_pdf()
         
-        # 2. Vytvoríme dočasné súbory
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            html_file = os.path.join(tmp_dir, 'invoice.html')
-            pdf_file = os.path.join(tmp_dir, 'invoice.pdf')
-            
-            with open(html_file, 'w', encoding='utf-8') as f:
-                f.write(html)
-            
-            # 3. Spustíme Chromium
-            cmd = [
-                chrome_path,
-                '--headless',
-                '--disable-gpu',
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--print-to-pdf=' + pdf_file,
-                '--no-pdf-header-footer',
-                '--no-margins',
-                '--paper-width=8.27',
-                '--paper-height=11.69',
-                html_file
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0 and os.path.exists(pdf_file):
-                with open(pdf_file, 'rb') as f:
-                    pdf_data = f.read()
-                return pdf_data, "application/pdf", True
-            else:
-                error = (result.stderr or result.stdout or "Unknown error").strip()
-                raise Exception(f"Chromium failed (code {result.returncode}): {error}")
+        return pdf_bytes, "application/pdf", True
                 
     except Exception as e:
-        app.logger.error(f"Chromium PDF failed: {str(e)}")
-        # Fallback na wkhtmltopdf ako posledná záchrana
-        try:
-            import pdfkit
-            wk_manifest = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wkhtmltopdf_path.txt')
-            wk_path = None
-            if os.path.exists(wk_manifest):
-                with open(wk_manifest, 'r') as f:
-                    wk_path = f.read().strip()
-            
-            wk_path = os.environ.get('WKHTMLTOPDF_PATH') or wk_path or shutil.which('wkhtmltopdf')
-            
-            if wk_path and os.path.exists(wk_path):
-                app.logger.info(f"Falling back to wkhtmltopdf: {wk_path}")
-                config = pdfkit.configuration(wkhtmltopdf=wk_path)
-                options = {'page-size': 'A4', 'orientation': 'Portrait', 'quiet': '', 'encoding': 'UTF-8'}
-                pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
-                return pdf_data, "application/pdf", True
-        except Exception as wke:
-            app.logger.error(f"wkhtmltopdf fallback also failed: {str(wke)}")
-
-        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
+        app.logger.error(f"WeasyPrint PDF failed: {str(e)}")
+        # Ak zlyhá všetko, vrátime HTML s chybou
+        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed (WeasyPrint): {str(e)}"
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -882,67 +802,29 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        import subprocess
-        import tempfile
-        import os
-        import shutil
-        import glob
+        from weasyprint import HTML
+        import sys
         
-        # Super-deep diagnostics
-        paths_to_check = ["/usr/bin", "/usr/local/bin", "/opt", "/nix/store"]
-        found_binaries = []
-        for p in paths_to_check:
-            try:
-                # Len ak cesta existuje
-                if os.path.exists(p):
-                    # Hľadáme čokoľvek čo vyzerá ako chrome/chromium
-                    found_binaries.extend(glob.glob(os.path.join(p, "*chrome*")))
-                    found_binaries.extend(glob.glob(os.path.join(p, "*chromium*")))
-                    # Ak je to nix store, musíme ísť hlbšie
-                    if "nix/store" in p:
-                        found_binaries.extend(glob.glob(os.path.join(p, "*/bin/*chromium*")))
-            except: pass
-
-        diag = {
-            "CHROME_PATH_ENV": os.environ.get('CHROME_PATH', 'NOT SET'),
-            "PATH": os.environ.get('PATH', ''),
-            "FOUND_POTENTIAL_BINARIES": found_binaries[:20],  # Limit to 20
-            "WHICH_CHROMIUM": shutil.which('chromium'),
-            "WHICH_GOOGLE_CHROME": shutil.which('google-chrome')
-        }
+        html_content = f"""
+        <html>
+            <head><meta charset="UTF-8"></head>
+            <body>
+                <h1>WeasyPrint Diagnostics</h1>
+                <p>Python Verzia: {sys.version}</p>
+                <p>Ak toto vidíte ako PDF, WeasyPrint funguje perfektne!</p>
+                <p>Tento spôsob už nevyžaduje žiadne externé prehliadače (Chromium) ani binárky.</p>
+            </body>
+        </html>
+        """
         
-        # Try to find the best one
-        chrome_path = None
-        for b in found_binaries:
-            if os.path.isfile(b) and os.access(b, os.X_OK):
-                chrome_path = b
-                break
-        
-        diag["SELECTED_CHROME_PATH"] = chrome_path
-
-        if not chrome_path:
-            return f"<h1>Chromium not found during deep search</h1><pre>{str(diag)}</pre>"
-
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            pdf_file = os.path.join(tmp_dir, 'test.pdf')
-            html_file = os.path.join(tmp_dir, 'test.html')
-            with open(html_file, 'w') as f: f.write(f"<h1>Success!</h1><p>Chromium found at: {chrome_path}</p><pre>{str(diag)}</pre>")
-            
-            cmd = [chrome_path, '--headless', '--no-sandbox', '--disable-gpu', '--print-to-pdf=' + pdf_file, '--no-pdf-header-footer', html_file]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            
-            if os.path.exists(pdf_file):
-                with open(pdf_file, 'rb') as f:
-                    pdf_output = f.read()
-                response = make_response(pdf_output)
-                response.headers['Content-Type'] = 'application/pdf'
-                return response
-            else:
-                return f"<h1>Chromium execution failed</h1><pre>CMD: {' '.join(cmd)}\nEXIT: {res.returncode}\nSTDERR: {res.stderr}\nSTDOUT: {res.stdout}\nDIAG: {str(diag)}</pre>"
+        pdf_output = HTML(string=html_content).write_pdf()
+        response = make_response(pdf_output)
+        response.headers['Content-Type'] = 'application/pdf'
+        return response
 
     except Exception as e:
         import traceback
-        return f"<h1>Critical Failure</h1><pre>{traceback.format_exc()}</pre>", 500
+        return f"<h1>WeasyPrint Failure</h1><p>Error: {str(e)}</p><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
