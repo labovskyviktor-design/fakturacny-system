@@ -54,12 +54,11 @@ def generate_qr_code_external(
             'transparent': 'false'
         }
         
-        if swift:
-            params['bic'] = swift
+        if beneficiary_address_1:
+            params['beneficiaryAddressLine1'] = beneficiary_address_1
             
-        if due_date:
-            # API očakáva RRRRMMDD
-            params['dueDate'] = due_date
+        if beneficiary_address_2:
+            params['beneficiaryAddressLine2'] = beneficiary_address_2
             
         # Logovanie pre debug
         print(f"Volám externé API: {api_url} s param: {params}")
@@ -82,18 +81,46 @@ def generate_qr_code_external(
         return None
 
 def _generate_qr_code_external_v2(params: dict) -> Optional[str]:
-    """Fallback na v2 POST API"""
+    """Fallback na v2 POST API - vyžaduje inú štruktúru JSON"""
     try:
         api_url = "https://api.freebysquare.sk/pay/v1/generate-png-v2"
-        response = requests.post(api_url, json=params, timeout=10)
+        
+        # Transformácia params na v2 štruktúru
+        v2_data = {
+            "size": 300,
+            "color": 1,
+            "transparent": False,
+            "payments": [
+                {
+                    "amount": float(params.get('amount', 0)),
+                    "currencyCode": params.get('currencyCode', 'EUR'),
+                    "paymentDueDate": params.get('dueDate', ''),
+                    "variableSymbol": params.get('variableSymbol', ''),
+                    "constantSymbol": params.get('constantSymbol', ''),
+                    "specificSymbol": params.get('specificSymbol', ''),
+                    "paymentNote": params.get('paymentNote', ''),
+                    "beneficiaryName": params.get('beneficiaryName', ''),
+                    "beneficiaryAddressLine1": params.get('beneficiaryAddressLine1', ''),
+                    "beneficiaryAddressLine2": params.get('beneficiaryAddressLine2', ''),
+                    "bankAccounts": [
+                        {
+                            "iban": params.get('iban', ''),
+                            "bic": params.get('bic', '')
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        response = requests.post(api_url, json=v2_data, timeout=10)
         
         if response.status_code == 200:
             png_bytes = response.content
             b64_string = base64.b64encode(png_bytes).decode('ascii')
             print("✓ QR kód vygenerovaný pomocou freebysquare.sk API v2")
             return f"data:image/png;base64,{b64_string}"
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Chyba pri v2 fallback: {e}")
     return None
 
 
