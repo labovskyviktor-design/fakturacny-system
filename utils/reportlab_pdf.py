@@ -54,25 +54,36 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     font_bold = 'Helvetica-Bold'
     font_loading_error = None
     
-    try:
-        # FORCE SYSTEM FONTS ONLY
-        # We skip local 'utils/fonts' because it has been unreliable (corrupt binaries).
+        # FORCE LOCAL FONTS (Verdana/DejaVu bundle)
+        # System fonts failed, so we rely on the bundled file.
         
-        system_paths = [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/usr/share/fonts/dejavu/DejaVuSans.ttf',
-            '/nix/profile/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-            '/nix/var/nix/profiles/default/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-        ]
+        # 1. Try relative to this file
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        font_dir = os.path.join(base_dir, 'fonts')
         
-        regular_font = None
-        bold_font = None
+        regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
+        bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
         
-        for path in system_paths:
-            if os.path.exists(path):
-                regular_font = path
-                bold_font = path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
-                break
+        # 2. Check if files exist
+        if not os.path.exists(regular_font):
+             # Try going up one level
+             font_dir = os.path.join(os.path.dirname(base_dir), 'utils', 'fonts')
+             regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
+             bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
+
+        # 3. Last Resort: System Paths
+        if not os.path.exists(regular_font):
+            system_paths = [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+                '/nix/profile/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/nix/var/nix/profiles/default/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+            ]
+            for path in system_paths:
+                if os.path.exists(path):
+                    regular_font = path
+                    bold_font = path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
+                    break
         
         if regular_font and os.path.exists(regular_font):
             reg_size = os.path.getsize(regular_font)
