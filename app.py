@@ -779,6 +779,7 @@ def _get_invoice_pdf_data(invoice):
     # Použijeme fpdf2 (čisto Python knižnica, 100% kompatibilná s Railway)
     try:
         from fpdf import FPDF, HTMLMixin
+        import os
         
         class MyFPDF(FPDF, HTMLMixin):
             pass
@@ -786,14 +787,39 @@ def _get_invoice_pdf_data(invoice):
         pdf = MyFPDF()
         pdf.add_page()
         
-        # fpdf2 vyžaduje Unicode font pre slovenské znaky
-        # Použijeme základný font, fpdf2-html má obmedzenú podporu CSS
-        pdf.set_font("helvetica", size=10)
+        # Pokúsime sa nájsť Unicode font pre slovenské znaky
+        # Na Railway (Nix) môžu byť cesty rôzne, skúsime najbežnejšie
+        font_paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+            "static/fonts/DejaVuSans.ttf"  # Ak by sme ho pribalili
+        ]
         
-        # Upravíme HTML pre fpdf2 (veľmi zjednodušené)
-        # fpdf2-html nepodporuje komplexné CSS, takže PDF bude vyzerať jednoduchšie
-        # ale BUDE FUNGOVAŤ na Railway.
-        pdf.write_html(html)
+        font_found = False
+        for path in font_paths:
+            if os.path.exists(path):
+                pdf.add_font("DejaVu", "", path)
+                pdf.set_font("DejaVu", "", 10)
+                font_found = True
+                break
+        
+        if not font_found:
+            # Ak font nenájdeme, použijeme helveticu a odstránime diakritiku
+            # aby sme sa vyhli pádu "Character ... is outside the range"
+            pdf.set_font("helvetica", size=10)
+            import unicodedata
+            html = ''.join(c for c in unicodedata.normalize('NFD', html)
+                          if unicodedata.category(c) != 'Mn')
+            app.logger.warning("Unicode font not found, stripping accents to avoid crash.")
+        
+        # fpdf2-html nepodporuje komplexné CSS a flexbox.
+        # Odstránime <style> bloky a <link>, ktoré fpdf2 nevie spracovať.
+        import re
+        clean_html = re.sub(r'<style>.*?</style>', '', html, flags=re.DOTALL)
+        clean_html = re.sub(r'<link.*?>', '', clean_html)
+        
+        # fpdf2-html vyžaduje veľmi jednoduché značky
+        pdf.write_html(clean_html)
         
         pdf_output = pdf.output()
         return bytes(pdf_output), "application/pdf", True
