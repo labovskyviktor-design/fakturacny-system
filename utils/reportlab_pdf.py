@@ -291,8 +291,6 @@ class InvoicePDF:
         total_p = Paragraph(f"{format_currency(self.invoice.total)}", ParagraphStyle('TotalBig', parent=self.style_bold, fontSize=16, textColor=self.c_primary, alignment=TA_RIGHT))
         
         totals_list = []
-        totals_list.append([Paragraph("Základ:", self.style_total_label), Paragraph(format_date_sk(self.invoice.subtotal).replace(' ', '') + ' €', self.style_total_val)]) # Fix currency formatting manually just here or use format_currency
-        # Actually format_currency returns string with €
         totals_list.append([Paragraph("Základ:", self.style_total_label), Paragraph(format_currency(self.invoice.subtotal), self.style_total_val)])
 
         if self.invoice.vat_rate > 0:
