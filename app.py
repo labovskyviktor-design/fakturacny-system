@@ -853,37 +853,67 @@ def debug_pdf_test():
         import shutil
         import os
         import sys
+        import subprocess
         
         # Diagnostics
         diag = {
             "sys.executable": sys.executable,
+            "cwd": os.getcwd(),
             "PATH": os.environ.get('PATH', ''),
             "WKHTMLTOPDF_PATH_ENV": os.environ.get('WKHTMLTOPDF_PATH', ''),
-            "shutil.which('wkhtmltopdf')": shutil.which('wkhtmltopdf')
         }
         
-        # Forced Portrait logic
+        # Check wrapper
+        wrapper_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wkhtmltopdf_wrapper.sh')
+        diag["Wrapper Path"] = wrapper_path
+        diag["Wrapper Exists"] = os.path.exists(wrapper_path)
+        if os.path.exists(wrapper_path):
+            diag["Wrapper Stats"] = oct(os.stat(wrapper_path).st_mode)[-3:]
+            # Try to make executable
+            try:
+                os.chmod(wrapper_path, 0o755)
+                diag["Chmod Success"] = True
+            except Exception as e:
+                diag["Chmod Error"] = str(e)
+
+        # Check binary
         wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
         if not wkhtmltopdf_path:
-            for p in ["/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf", 
-                      "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe", 
-                      "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"]:
+            for p in ["/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf", "/usr/bin/wkhtmltopdf-pack"]:
                 if os.path.exists(p):
                     wkhtmltopdf_path = p
                     break
+        diag["Detected Binary Path"] = wkhtmltopdf_path
         
-        diag["Detected Path"] = wkhtmltopdf_path
+        # Try to run --version
+        if wkhtmltopdf_path:
+            try:
+                res = subprocess.run([wkhtmltopdf_path, '--version'], capture_output=True, text=True, timeout=5)
+                diag["Version Output"] = res.stdout.strip()
+                diag["Version Error"] = res.stderr.strip()
+                diag["Version Exit Code"] = res.returncode
+            except Exception as e:
+                diag["Version Run Error"] = str(e)
         
+        # Try to run wrapper --version if exists
+        if os.path.exists(wrapper_path):
+            try:
+                res = subprocess.run(['bash', wrapper_path, '--version'], capture_output=True, text=True, timeout=5)
+                diag["Wrapper Version Output"] = res.stdout.strip()
+                diag["Wrapper Version Error"] = res.stderr.strip()
+            except Exception as e:
+                diag["Wrapper Version Run Error"] = str(e)
+
         html_content = f"""
         <html>
-            <head><meta charset="UTF-8"></head>
+            <head><meta charset="UTF-8"><style>table{{border-collapse:collapse;width:100%;}} td,th{{border:1px solid #ddd;padding:8px;}} pre{{white-space:pre-wrap;word-break:break-all;}}</style></head>
             <body>
-                <h1 style="color: #1e40af;">PDF Generation Diagnostics</h1>
-                <table border="1" cellpadding="5" style="border-collapse: collapse; width: 100%;">
-                    {"".join([f"<tr><td><b>{k}</b></td><td><pre>{v}</pre></td></tr>" for k, v in diag.items()])}
+                <h1>PDF Generation Diagnostics (Detailed)</h1>
+                <table>
+                    {"".join([f"<tr><th>{k}</th><td><pre>{v}</pre></td></tr>" for k, v in diag.items()])}
                 </table>
                 <hr>
-                <p>Ak toto vidíte ako PDF na výšku, všetko funguje správne.</p>
+                <p>Ak toto vidíte ako PDF, pdfkit funguje. Ak ako HTML, pozrite tabuľku vyššie.</p>
             </body>
         </html>
         """
@@ -893,19 +923,16 @@ def debug_pdf_test():
         
         try:
             pdf_output = pdfkit.from_string(html_content, False, configuration=config, options=options)
-            app.logger.info("Debug PDF generated via pdfkit")
+            response = make_response(pdf_output)
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = 'inline; filename=debug_test.pdf'
+            return response
         except Exception as e:
-            import traceback
-            app.logger.error(f"Debug PDF via pdfkit failed: {e}")
-            return f"PDF Test zlyhal: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
-        
-        response = make_response(pdf_output)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'inline; filename=debug_test.pdf'
-        return response
+            return f"<h1>PDFKit Failed</h1><p>Error: {str(e)}</p><hr>{html_content}", 500
+
     except Exception as e:
         import traceback
-        return f"PDF Test zlyhal kriticky: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+        return f"<h1>Critical Failure</h1><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
