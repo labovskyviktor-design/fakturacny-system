@@ -270,6 +270,30 @@ class InvoicePDF:
 
 
 def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
-    """Wrapper function to match existing interface"""
-    pdf = InvoicePDF(invoice, qr_code_base64)
-    return pdf.generate()
+    """Wrapper function with Error Handling"""
+    try:
+        pdf = InvoicePDF(invoice, qr_code_base64)
+        return pdf.generate()
+    except Exception as e:
+        # Fallback: Generate a simple PDF with the error message
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"PDF GENERATION ERROR: {e}")
+        print(error_trace)
+        
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        c.setFont("Helvetica", 10) # Fallback to standard font
+        c.setFillColor(colors.red)
+        c.drawString(2*cm, A4[1]-3*cm, "CRITICAL ERROR: PDF Generation Failed")
+        c.setFillColor(colors.black)
+        c.drawString(2*cm, A4[1]-4*cm, f"Error: {str(e)}")
+        
+        # Print trace lines
+        y = A4[1]-5*cm
+        for line in error_trace.split('\n')[-10:]: # Last 10 lines
+            c.drawString(2*cm, y, line.strip())
+            y -= 12
+            
+        c.save()
+        return buffer.getvalue()
