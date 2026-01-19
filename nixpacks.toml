@@ -1,18 +1,17 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "wkhtmltopdf", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
+nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "wkhtmltopdf", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext"]
 
 [phases.build]
 cmds = [
     "pip install -r requirements.txt",
-    "ln -sf $(which chromium || which google-chrome || echo '/usr/bin/chromium') chromium-bin",
-    "ln -sf $(which wkhtmltopdf || echo '/usr/bin/wkhtmltopdf') wkhtmltopdf-bin",
-    "chmod +x chromium-bin wkhtmltopdf-bin || true"
+    # Nájdeme binárky a uložíme ich absolútne cesty do súborov pre Python
+    "which chromium > chromium_path.txt || find /nix/store -name chromium -type f -executable -print -quit > chromium_path.txt || echo '/usr/bin/chromium' > chromium_path.txt",
+    "which wkhtmltopdf > wkhtmltopdf_path.txt || find /nix/store -name wkhtmltopdf -type f -executable -print -quit > wkhtmltopdf_path.txt || echo '/usr/bin/wkhtmltopdf' > wkhtmltopdf_path.txt",
+    "echo 'Binaries located during build:' && cat chromium_path.txt && cat wkhtmltopdf_path.txt"
 ]
 
 [variables]
 PYTHONPATH = ".:$PYTHONPATH"
-CHROME_PATH = "/app/chromium-bin"
-WKHTMLTOPDF_PATH = "/app/wkhtmltopdf-bin"
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]

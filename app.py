@@ -776,29 +776,44 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez Headless Chromium (moderný a spoľahlivý spôsob)
+    # Generovanie PDF cez Headless Chromium
     try:
         import subprocess
         import tempfile
         import os
         import shutil
         
-        # 1. Hľadáme Chromium binárku - prioritne symlink z buildu
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        chrome_path = os.path.join(base_dir, 'chromium-bin')
+        # 1. Hľadáme Chromium binárku - TIERED DISCOVERY
+        chrome_path = os.environ.get('CHROME_PATH')
         
-        if not os.path.exists(chrome_path):
-            chrome_path = os.environ.get('CHROME_PATH') or shutil.which('chromium') or shutil.which('google-chrome')
-        
-        if not (chrome_path and os.path.exists(chrome_path)):
-            # Ak stále nič, skúsime posledný zúfalý pokus v systéme
-            for p in ["/usr/bin/chromium", "/usr/bin/google-chrome"]:
-                if os.path.exists(p):
+        # Skúsime prečítať manifest z buildu ak CHROME_PATH nie je nastavená
+        if not chrome_path or not os.path.exists(chrome_path):
+            manifest_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'chromium_path.txt')
+            if os.path.exists(manifest_path):
+                with open(manifest_path, 'r') as f:
+                    p = f.read().strip()
+                if p and os.path.exists(p):
                     chrome_path = p
-                    break
-        
+                    app.logger.info(f"Chromium path from manifest: {chrome_path}")
+
+        # Skúsime shutil.which
         if not chrome_path:
-            raise Exception("Chromium binary not found. Build symlink /app/chromium-bin is missing.")
+            chrome_path = shutil.which('chromium') or shutil.which('google-chrome')
+            
+        # Skúsime nájsť na disku (Nix store)
+        if not chrome_path and os.name != 'nt':
+            try:
+                find_res = subprocess.run(['find', '/nix/store', '-name', 'chromium', '-type', 'f', '-executable'], 
+                                       capture_output=True, text=True, timeout=10)
+                if find_res.stdout:
+                    chrome_path = find_res.stdout.splitlines()[0]
+                    app.logger.info(f"Chromium path found via find: {chrome_path}")
+            except Exception as e:
+                app.logger.warning(f"Find command failed: {e}")
+
+        if not (chrome_path and os.path.exists(chrome_path)):
+            app.logger.error("Chromium binary not found everywhere.")
+            raise Exception("Chromium not found. Check build logs for 'Binaries located during build'.")
             
         app.logger.info(f"Using Chromium for PDF: {chrome_path}")
         
@@ -810,7 +825,7 @@ def _get_invoice_pdf_data(invoice):
             with open(html_file, 'w', encoding='utf-8') as f:
                 f.write(html)
             
-            # 3. Spustíme Chromium pre "Print to PDF"
+            # 3. Spustíme Chromium
             cmd = [
                 chrome_path,
                 '--headless',
@@ -832,12 +847,31 @@ def _get_invoice_pdf_data(invoice):
                     pdf_data = f.read()
                 return pdf_data, "application/pdf", True
             else:
-                error = result.stderr or result.stdout or "Unknown Chromium error"
-                raise Exception(f"Chromium failed: {error}")
+                error = (result.stderr or result.stdout or "Unknown error").strip()
+                raise Exception(f"Chromium failed (code {result.returncode}): {error}")
                 
     except Exception as e:
-        app.logger.error(f"Chromium PDF generation failed: {str(e)}")
-        # Fallback na HTML ak fakt nič nefunguje
+        app.logger.error(f"Chromium PDF failed: {str(e)}")
+        # Fallback na wkhtmltopdf ako posledná záchrana
+        try:
+            import pdfkit
+            wk_manifest = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wkhtmltopdf_path.txt')
+            wk_path = None
+            if os.path.exists(wk_manifest):
+                with open(wk_manifest, 'r') as f:
+                    wk_path = f.read().strip()
+            
+            wk_path = os.environ.get('WKHTMLTOPDF_PATH') or wk_path or shutil.which('wkhtmltopdf')
+            
+            if wk_path and os.path.exists(wk_path):
+                app.logger.info(f"Falling back to wkhtmltopdf: {wk_path}")
+                config = pdfkit.configuration(wkhtmltopdf=wk_path)
+                options = {'page-size': 'A4', 'orientation': 'Portrait', 'quiet': '', 'encoding': 'UTF-8'}
+                pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+                return pdf_data, "application/pdf", True
+        except Exception as wke:
+            app.logger.error(f"wkhtmltopdf fallback also failed: {str(wke)}")
+
         return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
 
 @app.route('/debug/pdf-test')
