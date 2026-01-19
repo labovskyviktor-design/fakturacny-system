@@ -64,30 +64,37 @@ def _generate_qr_code_external_v2(params: dict) -> Optional[str]:
             # Convert 20260120 -> 2026-01-20
             date_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
             
+        # Construct minimal valid payload
+        payment_data = {
+            "amount": round(float(params.get('amount', 0)), 2),
+            "currencyCode": params.get('currencyCode', 'EUR'),
+            "paymentDueDate": date_str,
+            "bankAccounts": [
+                {
+                    "iban": params.get('iban', ''),
+                }
+            ]
+        }
+        
+        # Add optional fields only if present
+        if params.get('variableSymbol'):
+            payment_data["variableSymbol"] = params['variableSymbol']
+        if params.get('constantSymbol'):
+            payment_data["constantSymbol"] = params['constantSymbol']
+        if params.get('specificSymbol'):
+            payment_data["specificSymbol"] = params['specificSymbol']
+        if params.get('paymentNote'):
+            payment_data["paymentNote"] = params['paymentNote']
+        if params.get('beneficiaryName'):
+            payment_data["beneficiaryName"] = params['beneficiaryName']
+        if params.get('bic'): # Add BIC only if provided
+             payment_data["bankAccounts"][0]["bic"] = params['bic']
+
         v2_data = {
             "size": 300,
             "color": 1,
             "transparent": False,
-            "payments": [
-                {
-                    "amount": float(params.get('amount', 0)),
-                    "currencyCode": params.get('currencyCode', 'EUR'),
-                    "paymentDueDate": date_str,
-                    "variableSymbol": params.get('variableSymbol', ''),
-                    "constantSymbol": params.get('constantSymbol', ''),
-                    "specificSymbol": params.get('specificSymbol', ''),
-                    "paymentNote": params.get('paymentNote', ''),
-                    "beneficiaryName": params.get('beneficiaryName', ''),
-                    "beneficiaryAddressLine1": params.get('beneficiaryAddressLine1', ''),
-                    "beneficiaryAddressLine2": params.get('beneficiaryAddressLine2', ''),
-                    "bankAccounts": [
-                        {
-                            "iban": params.get('iban', ''),
-                            "bic": params.get('bic', '')
-                        }
-                    ]
-                }
-            ]
+            "payments": [payment_data]
         }
         
         response = requests.post(api_url, json=v2_data, timeout=10)
