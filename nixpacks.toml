@@ -1,5 +1,4 @@
-[phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "libffi", "libxml2", "libxslt"]
+nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "libffi", "libxml2", "libxslt"]
 
 [phases.build]
 cmds = [
