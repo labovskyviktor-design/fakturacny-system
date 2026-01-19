@@ -854,9 +854,6 @@ def _get_invoice_pdf_data(invoice):
         
     # Ak všetko zlyhá, vrátime HTML a chybovú správu
     return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
-        
-    # Ak všetko zlyhá, vrátime HTML a chybovú správu
-    return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
 
 @app.route('/debug/pdf-test')
 @login_required
