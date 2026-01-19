@@ -55,51 +55,43 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     font_loading_error = None
     
     try:
-        # Path to bundled fonts - robust detection
-        # 1. Try relative to this file
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        font_dir = os.path.join(base_dir, 'fonts')
+        # FORCE SYSTEM FONTS ONLY
+        # We skip local 'utils/fonts' because it has been unreliable (corrupt binaries).
         
-        regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
-        bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
+        system_paths = [
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+            '/nix/profile/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/nix/var/nix/profiles/default/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+        ]
         
-        # 2. Check if files exist
-        if not os.path.exists(regular_font):
-             # Try going up one level (if utils is package)
-             font_dir = os.path.join(os.path.dirname(base_dir), 'utils', 'fonts')
-             regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
-             bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
-
-        # 3. Try System Paths (Nixpacks / Linux)
-        if not os.path.exists(regular_font):
-            system_paths = [
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                '/usr/share/fonts/dejavu/DejaVuSans.ttf',
-                '/nix/profile/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                '/nix/var/nix/profiles/default/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-            ]
-            for path in system_paths:
-                if os.path.exists(path):
-                    regular_font = path
-                    bold_font = path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
-                    break
-
-        if os.path.exists(regular_font):
+        regular_font = None
+        bold_font = None
+        
+        for path in system_paths:
+            if os.path.exists(path):
+                regular_font = path
+                bold_font = path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
+                break
+        
+        if regular_font and os.path.exists(regular_font):
             reg_size = os.path.getsize(regular_font)
-            if reg_size < 1000:
-                raise ValueError(f"Font file too small ({reg_size} bytes): {regular_font}")
-        
-        # Use a unique name to prevent caching issues
-        if os.path.exists(regular_font) and os.path.exists(bold_font):
-            registerFont(TTFont('CustomSlovak', regular_font))
-            registerFont(TTFont('CustomSlovak-Bold', bold_font))
-            font_name = 'CustomSlovak'
-            font_bold = 'CustomSlovak-Bold'
             
-            # SUCCESS DEBUG (Will clearly show which file won)
-            font_loading_error = f"SUCCESS: Loaded {regular_font} ({reg_size} bytes)"
+            # Use unique name
+            registerFont(TTFont('SystemSlovak', regular_font))
+            # Try to register bold, fallback to regular if bold missing
+            if bold_font and os.path.exists(bold_font):
+                registerFont(TTFont('SystemSlovak-Bold', bold_font))
+            else:
+                registerFont(TTFont('SystemSlovak-Bold', regular_font))
+                
+            font_name = 'SystemSlovak'
+            font_bold = 'SystemSlovak-Bold'
+            
+            # SUCCESS DEBUG
+            font_loading_error = f"SUCCESS: SYSTEM FONT {regular_font} ({reg_size} B)"
         else:
-            font_loading_error = f"Fonts not found at: {regular_font}"
+            font_loading_error = "CRITICAL: No System Fonts Found in /usr/share or /nix/..."
             print(font_loading_error)
             
     except Exception as e:
@@ -467,7 +459,17 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     
     import datetime
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    c.drawCentredString(width / 2, y_position - 28, f"Generované systémom FakturaSK/ReportLab v2.0 | {timestamp}")
+    
+    # QR DEBUG INFO
+    qr_source = "NONE"
+    if qr_code_base64:
+        if "freebysquare" in str(qr_code_base64) or len(qr_code_base64) > 1000: # External usually larger/png
+             qr_source = "EXTERNAL (API)"
+        else:
+             qr_source = "LOCAL (Fallback)"
+             
+    footer_text = f"Generované systémom FakturaSK/ReportLab v2.1 | {timestamp} | QR: {qr_source}"
+    c.drawCentredString(width / 2, y_position - 28, footer_text)
     
     # Watermarks for status
     if invoice.status == 'cancelled':
