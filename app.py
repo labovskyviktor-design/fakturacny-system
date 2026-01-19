@@ -776,49 +776,40 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez pdfkit (wkhtmltopdf)
+    # Generovanie PDF cez pdfkit (wkhtmltopdf) s runtime premennými z entrypoint.sh
     try:
         import pdfkit
-        import shutil
         import os
-        import subprocess
+        import shutil
         
-        # 1. Hľadáme binárku wkhtmltopdf
-        wk_path = shutil.which('wkhtmltopdf')
+        # 1. Získame cesty nastavené v entrypoint.sh
+        wk_path = os.environ.get('WKHTMLTOPDF_PATH')
+        xvfb_path = os.environ.get('XVFB_PATH')
         
-        # Skúsime nájsť v Nix store ak shutil zlyhá
-        if not wk_path and os.name != 'nt':
+        # Fallback ak premenné nie sú nastavené (napr. lokálne)
+        if not wk_path or not os.path.exists(wk_path):
+            wk_path = shutil.which('wkhtmltopdf')
+            
+        if not (wk_path and os.path.exists(wk_path)):
+            app.logger.warning("wkhtmltopdf binary not found in env or path. Trying deep search...")
+            # Posledný pokus cez find priamo z Pythonu
+            import subprocess
             try:
                 res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], 
                                    capture_output=True, text=True, timeout=5)
-                if res.stdout.strip():
-                    wk_path = res.stdout.strip().splitlines()[0]
+                if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
             except: pass
 
         if not wk_path:
-            # Fallback na bežnú cestu
-            wk_path = '/usr/bin/wkhtmltopdf' if os.path.exists('/usr/bin/wkhtmltopdf') else None
+            raise Exception("wkhtmltopdf binary not found. Environment: " + str(os.environ.get('PATH')))
 
-        if not wk_path:
-            raise Exception("wkhtmltopdf binary not found. Please check build logs.")
-
-        # 2. Nastavenie konfigurácie (xvfb-run pre headless prostredie)
-        # xvfb-run zabezpečí, že wkhtmltopdf bude mať virtuálny displej
-        xvfb_path = shutil.which('xvfb-run')
-        if xvfb_path and os.name != 'nt':
-            # Ak máme xvfb-run, použijeme wrapper
-            class XvfbConfig(pdfkit.configuration):
-                def __init__(self, wkhtmltopdf):
-                    self.wkhtmltopdf = xvfb_path
-                    self.meta_wkhtmltopdf = wkhtmltopdf
-                def command(self, path):
-                    return [self.wkhtmltopdf, '-a', self.meta_wkhtmltopdf] + path
-            
-            # Alebo jednoduchšie (pre pdfkit):
-            config = pdfkit.configuration(wkhtmltopdf=wk_path)
-            # Pridáme xvfb-run pred samotný príkaz (niektoré verzie pdfkit to neberú priamo cez config)
-            # skúsime radšej priamy wrapper ak to nepôjde, ale toto je základ:
+        # 2. Nastavenie konfigurácie
+        # Ak máme xvfb-run, použijeme ho ako prefix
+        if xvfb_path and os.path.exists(xvfb_path):
+            app.logger.info(f"Using wkhtmltopdf with xvfb at {wk_path}")
+            config = pdfkit.configuration(wkhtmltopdf=f"{xvfb_path} -a {wk_path}")
         else:
+            app.logger.info(f"Using wkhtmltopdf at {wk_path}")
             config = pdfkit.configuration(wkhtmltopdf=wk_path)
 
         options = {
@@ -833,11 +824,6 @@ def _get_invoice_pdf_data(invoice):
             'quiet': ''
         }
         
-        # Ak sme na Railway, skúsime použiť xvfb-run cez prefix
-        if xvfb_path and os.name != 'nt':
-            # Hack pre pdfkit: povieme mu, že binárka je "xvfb-run -a wkhtmltopdf"
-            config = pdfkit.configuration(wkhtmltopdf=f"{xvfb_path} -a {wk_path}")
-
         pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
         return pdf_data, "application/pdf", True
                 
@@ -858,33 +844,26 @@ def debug_pdf_test():
         import shutil
         import os
         
-        wk_path = shutil.which('wkhtmltopdf')
-        xvfb_path = shutil.which('xvfb-run')
+        wk_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
+        xvfb_path = os.environ.get('XVFB_PATH') or shutil.which('xvfb-run')
         
         html_content = f"""
         <html>
             <body style="font-family: sans-serif; padding: 40px;">
-                <h1 style="color: #1e40af;">pdfkit Status: SUCCESS ✅</h1>
-                <p>Binárka wkhtmltopdf: {wk_path or 'NENÁJDENÁ'}</p>
-                <p>Xvfb-run: {xvfb_path or 'NENÁJDENÝ'}</p>
-                <p>Toto PDF potvrdzuje, že systém vidí binárky a vie generovať PDF.</p>
+                <h1 style="color: #1e40af;">pdfkit Status: DEBUG ✅</h1>
+                <p><b>WKHTMLTOPDF_PATH (ENV):</b> {os.environ.get('WKHTMLTOPDF_PATH')}</p>
+                <p><b>XVFB_PATH (ENV):</b> {os.environ.get('XVFB_PATH')}</p>
+                <p><b>Detected wkhtmltopdf:</b> {wk_path}</p>
+                <p><b>Detected xvfb-run:</b> {xvfb_path}</p>
+                <p>PATH: {os.environ.get('PATH')}</p>
             </body>
         </html>
         """
         
-        # Binary discovery for debug
-        if not wk_path and os.name != 'nt':
-            import subprocess
-            try:
-                res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], capture_output=True, text=True)
-                if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
-            except: pass
-
-        if not wk_path: return "<h1>Error</h1><p>wkhtmltopdf binary not found.</p>", 500
+        if not wk_path: return f"<h1>Error</h1><p>wkhtmltopdf not found.</p><pre>{str(os.environ)}</pre>", 500
 
         config_path = wk_path
-        if xvfb_path and os.name != 'nt':
-            config_path = f"{xvfb_path} -a {wk_path}"
+        if xvfb_path: config_path = f"{xvfb_path} -a {wk_path}"
         
         config = pdfkit.configuration(wkhtmltopdf=config_path)
         pdf_output = pdfkit.from_string(html_content, False, configuration=config)

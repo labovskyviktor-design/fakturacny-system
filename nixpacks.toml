@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts"]
+nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts", "findutils"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
@@ -8,4 +8,4 @@ cmds = ["pip install -r requirements.txt"]
 PYTHONPATH = "."
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
+cmd = "bash entrypoint.sh"
