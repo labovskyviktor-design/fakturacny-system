@@ -776,59 +776,29 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # --- DEFINITÍVNA NIKDY-NEZLYHAJÚCA DISCOVERY ---
+    # --- DEFINITÍVNE RIEŠENIE: NIX-NATIVE WEASYPRINT ---
     try:
-        import pdfkit
-        import os
-        import shutil
-        import subprocess
+        from weasyprint import HTML, CSS
+        import io
         
-        # 1. HLAVNÁ CESTA: Lokálny symlink vytvorený v bootstrap.sh
-        wk_path = os.path.join(os.getcwd(), 'wkhtmltopdf_local')
-        xvfb_path = os.path.join(os.getcwd(), 'xvfb_run_local')
+        app.logger.info("Generating PDF using WeasyPrint (Nix-Native)")
         
-        app.logger.info(f"Checking bootstrap links: {wk_path} (exists: {os.path.exists(wk_path)})")
-
-        # 2. FALLBACKY (Ak bootstrap zlyhal alebo sme lokálne)
-        if not os.path.exists(wk_path):
-            app.logger.warning("Bootstrap link not found. Searching PATH...")
-            wk_path = shutil.which('wkhtmltopdf')
-            
-        if not wk_path or not os.path.exists(wk_path):
-            app.logger.warning("Still not found. Deep scanning /nix/store...")
-            try:
-                # Dynamický sken ako posledná záchrana
-                cmd = "find /nix/store -name wkhtmltopdf -type f -executable -print -quit 2>/dev/null"
-                res = subprocess.check_output(cmd, shell=True).decode().strip()
-                if res: wk_path = res
-            except: pass
-
-        if not (wk_path and os.path.exists(wk_path)):
-            log_env = {k: v for k, v in os.environ.items() if 'PATH' in k or 'WK' in k}
-            raise Exception(f"CRITICAL: wkhtmltopdf binary NOT FOUND. Searched: local_link, PATH, nix_store. Env: {log_env}")
-
-        # 3. KONFIGURÁCIA (Headless mode)
-        final_cmd = wk_path
-        if os.path.exists(xvfb_path) and os.name != 'nt':
-            app.logger.info(f"Using xvfb-run prefix at {xvfb_path}")
-            final_cmd = f"{xvfb_path} -a {wk_path}"
+        # Generujeme PDF z HTML stringu
+        # Pridávame základné CSS pre A4 portrait ak by chýbalo v šablóne
+        base_url = os.path.dirname(os.path.realpath(__file__))
         
-        config = pdfkit.configuration(wkhtmltopdf=final_cmd)
+        pdf_file = io.BytesIO()
+        HTML(string=html, base_url=base_url).write_pdf(
+            target=pdf_file,
+            presentational_hints=True
+        )
         
-        options = {
-            'page-size': 'A4',
-            'orientation': 'Portrait',
-            'margin-top': '5mm', 'margin-right': '5mm', 'margin-bottom': '5mm', 'margin-left': '5mm',
-            'encoding': "UTF-8", 'no-outline': None, 'quiet': ''
-        }
-        
-        # 4. SAMOTNÉ GENEROVANIE
-        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+        pdf_data = pdf_file.getvalue()
         return pdf_data, "application/pdf", True
                 
     except Exception as e:
-        app.logger.error(f"ENGINE FAILURE: {str(e)}")
-        # Vrátime HTML s chybou v tele, aby klient vedel, čo sa deje
+        app.logger.error(f"WEASYPRINT FAILURE: {str(e)}")
+        # Vrátime HTML s chybou v tele
         error_msg = f"ERROR: PDF generation failed: {str(e)}"
         return html.encode('utf-8'), "text/html", error_msg
 
@@ -840,51 +810,30 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        import os
-        import shutil
-        import pdfkit
+        from weasyprint import HTML
+        import io
         
-        wk_path = os.environ.get('WKHTMLTOPDF_PATH')
-        xvfb_path = os.environ.get('XVFB_PATH')
-        
-        diag = {
-            "ENV WKHTMLTOPDF_PATH": wk_path,
-            "ENV XVFB_PATH": xvfb_path,
-            "WKHTML exists on disk?": os.path.exists(wk_path) if wk_path else False,
-            "Captured PATH": os.environ.get('PATH'),
-        }
-        
-        test_result = "Not tested"
-        # Test Engine
-        try:
-            config_path = wk_path if wk_path and os.path.exists(wk_path) else shutil.which('wkhtmltopdf')
-            if not config_path: raise Exception("Binary not found")
-            
-            config = pdfkit.configuration(wkhtmltopdf=config_path)
-            pdfkit.from_string("<h1>Test Authority</h1>", False, configuration=config)
-            test_result = "SUCCESS ✅"
-        except Exception as e:
-            test_result = f"FAILED ❌ ({str(e)})"
-
-        html_out = f"""
+        html_content = f"""
         <html>
-            <body style="font-family: sans-serif; padding: 40px; line-height: 1.6;">
-                <h1 style="color: #1e40af;">Absolute Authority PDF Debug 🛠️</h1>
-                <h2>Environment Authority:</h2>
-                <ul>
-                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in diag.items()])}
-                </ul>
-                <hr>
-                <h2>Engine Test:</h2>
-                <p><b>Status:</b> {test_result}</p>
+            <body style="font-family: sans-serif; padding: 40px;">
+                <h1 style="color: #1e40af;">WeasyPrint Status: SUCCESS ✅</h1>
+                <p><b>Engine:</b> Nix-Native WeasyPrint</p>
+                <p><b>Environment:</b> Authoritative Nix Linking</p>
+                <p>Ak toto vidíte ako PDF, motor WeasyPrint je správne prepojený s knižnicami.</p>
             </body>
         </html>
         """
-        return html_out
+        
+        pdf_file = io.BytesIO()
+        HTML(string=html_content).write_pdf(pdf_file)
+        
+        response = make_response(pdf_file.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        return response
 
     except Exception as e:
         import traceback
-        return f"<h1>Global Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
+        return f"<h1>WeasyPrint Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
 
     except Exception as e:
         import traceback

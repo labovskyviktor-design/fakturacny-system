@@ -1,13 +1,24 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts", "findutils"]
+nixPkgs = [
+    "python311",
+    "gcc",
+    "postgresql",
+    "weasyprint",
+    "pango",
+    "cairo",
+    "gobject-introspection",
+    "glib",
+    "libffi",
+    "fontconfig",
+    "dejavu_fonts"
+]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
 
 [variables]
 PYTHONPATH = "."
-# Pridáme cesty ku knižniciam ktoré wkhtmltopdf potrebuje
 LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib"
 
 [start]
-cmd = "bash bootstrap.sh"
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
