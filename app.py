@@ -776,18 +776,22 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Konfigurácia a generovanie PDF
+    # Konfigurácia a generovanie PDF (wkhtmltopdf)
     try:
         import pdfkit
         import shutil
         import os
         
-        # 1. Skúsime pdfkit (wkhtmltopdf) - najvyššia kvalita
+        # Discovery binárky
         wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
         
         if not wkhtmltopdf_path:
+            # Skúsime bežné cesty vrátane Nix store ciest
             potential_paths = [
-                "/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf",
+                "/usr/bin/wkhtmltopdf", 
+                "/usr/local/bin/wkhtmltopdf", 
+                "/opt/bin/wkhtmltopdf",
+                "/usr/bin/wkhtmltopdf-pack",
                 "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe",
                 "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
             ]
@@ -796,51 +800,38 @@ def _get_invoice_pdf_data(invoice):
                     wkhtmltopdf_path = p
                     break
         
-        if wkhtmltopdf_path:
-            app.logger.info(f"Using pdfkit with binary at: {wkhtmltopdf_path}")
-            config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-            options = {
-                'page-size': 'A4',
-                'orientation': 'Portrait',
-                'margin-top': '0.6in',
-                'margin-right': '0.6in',
-                'margin-bottom': '0.6in',
-                'margin-left': '0.6in',
-                'encoding': "UTF-8",
-                'no-outline': None,
-                'quiet': '',
-                'enable-local-file-access': None,
-                'disable-smart-shrinking': None,
-                'zoom': '1.0',
-                'dpi': '96'
-            }
-            pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
-            return pdf_data, "application/pdf", True
-        else:
-            app.logger.warning("wkhtmltopdf not found, trying xhtml2pdf fallback...")
-
-    except Exception as e:
-        app.logger.error(f"pdfkit failed: {str(e)}")
-
-    # 2. Skúsime xhtml2pdf (pure-python fallback) - spoľahlivé na serveri
-    try:
-        from xhtml2pdf import pisa
-        import io
+        app.logger.info(f"PDF generation starting. Binary path: {wkhtmltopdf_path}")
+            
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
         
-        app.logger.info("Generating PDF using xhtml2pdf fallback...")
-        pdf_buffer = io.BytesIO()
-        pisa_status = pisa.CreatePDF(io.BytesIO(html.encode("utf-8")), dest=pdf_buffer, encoding='utf-8')
+        options = {
+            'page-size': 'A4',
+            'orientation': 'Portrait',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'quiet': '',
+            'enable-local-file-access': None,
+            'disable-smart-shrinking': None,
+            'zoom': '1.0',
+            'dpi': '96'
+        }
         
-        if not pisa_status.err:
-            return pdf_buffer.getvalue(), "application/pdf", True
-        else:
-            app.logger.error(f"xhtml2pdf failed with status: {pisa_status.err}")
+        # Generujeme PDF
+        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+        return pdf_data, "application/pdf", True
+        
     except Exception as e:
-        app.logger.error(f"xhtml2pdf fallback failed: {str(e)}")
-
-    # 3. Posledná záchrana - HTML
-    app.logger.error("All PDF generation methods failed. Returning HTML fallback.")
-    return html.encode('utf-8'), "text/html", "ERROR: Nepodarilo sa vygenerovať PDF. Skúste neskôr."
+        error_msg = str(e)
+        import traceback
+        trace_msg = traceback.format_exc()
+        app.logger.error(f"pdfkit generation failed: {error_msg}\n{trace_msg}")
+        
+    # Fallback na HTML ak fakt nič nefunguje
+    return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {error_msg}"
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -896,12 +887,9 @@ def debug_pdf_test():
             pdf_output = pdfkit.from_string(html_content, False, configuration=config, options=options)
             app.logger.info("Debug PDF generated via pdfkit")
         except Exception as e:
-            app.logger.warning(f"Debug PDF via pdfkit failed: {e}. Trying xhtml2pdf fallback...")
-            from xhtml2pdf import pisa
-            import io
-            pdf_buffer = io.BytesIO()
-            pisa.CreatePDF(io.BytesIO(html_content.encode("utf-8")), dest=pdf_buffer, encoding='utf-8')
-            pdf_output = pdf_buffer.getvalue()
+            import traceback
+            app.logger.error(f"Debug PDF via pdfkit failed: {e}")
+            return f"PDF Test zlyhal: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
         
         response = make_response(pdf_output)
         response.headers['Content-Type'] = 'application/pdf'
