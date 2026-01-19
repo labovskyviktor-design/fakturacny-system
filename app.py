@@ -776,63 +776,72 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez pdfkit (wkhtmltopdf) s fixnými cestami z buildu
+    # Generovanie PDF s VIACSTUPŇOVOU ARCHITEKTÚROU (SILA A STABILITA)
     try:
-        import pdfkit
         import os
         import shutil
+        import subprocess
         
-        # 1. Skúsime prečítať cesty uložené počas buildu (Railway špeciál)
-        wk_path = None
-        xvfb_path = None
+        # 1. Definujeme cesty (Priorita: Lokálne kópie z buildu)
+        wk_path = os.path.join(os.getcwd(), 'wkhtmltopdf_bin')
+        xvfb_path = os.path.join(os.getcwd(), 'xvfb_run_bin')
         
-        if os.path.exists('wkhtml_path.txt'):
-            with open('wkhtml_path.txt', 'r') as f:
-                wk_path = f.read().strip()
-        
-        if os.path.exists('xvfb_path.txt'):
-            with open('xvfb_path.txt', 'r') as f:
-                xvfb_path = f.read().strip()
-                
-        # 2. Fallback na standardne vyhladavanie (lokalne/ak file zlyha)
-        if not wk_path or not os.path.exists(wk_path):
+        # Ak lokálne kópie neexistujú, skúsime systémový PATH
+        if not os.path.exists(wk_path):
             wk_path = shutil.which('wkhtmltopdf') or '/usr/bin/wkhtmltopdf'
-            
-        if not xvfb_path or not os.path.exists(xvfb_path):
+        
+        if not os.path.exists(xvfb_path):
             xvfb_path = shutil.which('xvfb-run') or '/usr/bin/xvfb-run'
 
-        if not os.path.exists(wk_path):
-            app.logger.error(f"Binary NOT FOUND at {wk_path}. PATH: {os.environ.get('PATH')}")
-            raise Exception(f"wkhtmltopdf binary not found. Path searched: {wk_path}")
+        app.logger.info(f"PDF Strategy: pdfkit via {wk_path}")
 
-        # 3. Konfigurácia PDF
-        app.logger.info(f"PDF Engine: {wk_path} (xvfb: {xvfb_path})")
-        
-        config_cmd = wk_path
-        if xvfb_path and os.path.exists(xvfb_path) and os.name != 'nt':
-            config_cmd = f"{xvfb_path} -a {wk_path}"
+        # --- ENGINE 1: pdfkit (wkhtmltopdf) ---
+        try:
+            import pdfkit
             
-        config = pdfkit.configuration(wkhtmltopdf=config_cmd)
-
-        options = {
-            'page-size': 'A4',
-            'orientation': 'Portrait',
-            'margin-top': '0',
-            'margin-right': '0',
-            'margin-bottom': '0',
-            'margin-left': '0',
-            'encoding': "UTF-8",
-            'no-outline': None,
-            'quiet': ''
-        }
-        
-        # 4. Generovanie
-        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
-        return pdf_data, "application/pdf", True
+            if not os.path.exists(wk_path):
+                raise Exception("Primary binary wkhtmltopdf not found.")
+                
+            config_cmd = wk_path
+            if os.path.exists(xvfb_path) and os.name != 'nt':
+                config_cmd = f"{xvfb_path} -a {wk_path}"
+                
+            config = pdfkit.configuration(wkhtmltopdf=config_cmd)
+            options = {
+                'page-size': 'A4',
+                'orientation': 'Portrait',
+                'margin-top': '0',
+                'margin-right': '0',
+                'margin-bottom': '0',
+                'margin-left': '0',
+                'encoding': "UTF-8",
+                'no-outline': None,
+                'quiet': ''
+            }
+            
+            pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+            return pdf_data, "application/pdf", True
+            
+        except Exception as pk_err:
+            app.logger.warning(f"Engine 1 (pdfkit) failed: {pk_err}")
+            
+            # --- ENGINE 2: xhtml2pdf (Pure Python Fallback) ---
+            try:
+                from xhtml2pdf import pisa
+                import io
+                app.logger.info("Strategy: Falling back to Engine 2 (xhtml2pdf)")
+                
+                result_file = io.BytesIO()
+                pisa.CreatePDF(io.BytesIO(html.encode('utf-8')), dest=result_file, encoding='utf-8')
+                
+                return result_file.getvalue(), "application/pdf", True
+            except Exception as x2p_err:
+                app.logger.error(f"Engine 2 (xhtml2pdf) failed: {x2p_err}")
+                raise Exception("All invoice PDF engines failed.")
                 
     except Exception as e:
-        app.logger.error(f"PDF generation failed: {str(e)}")
-        # Ak by zlyhal pdfkit, vrátime aspoň HTML s chybou
+        app.logger.error(f"CRITICAL: PDF generation failed: {str(e)}")
+        # Ak zlyhá úplne všetko, vrátime HTML s chybou
         return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
 
 @app.route('/debug/pdf-test')
@@ -843,38 +852,52 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        import pdfkit
         import os
+        import shutil
         
-        wk_path = "Unknown"
-        xvfb_path = "Unknown"
+        # Cesty
+        wk_path = os.path.join(os.getcwd(), 'wkhtmltopdf_bin')
+        xvfb_path = os.path.join(os.getcwd(), 'xvfb_run_bin')
         
-        if os.path.exists('wkhtml_path.txt'):
-            with open('wkhtml_path.txt', 'r') as f: wk_path = f.read().strip()
-        if os.path.exists('xvfb_path.txt'):
-            with open('xvfb_path.txt', 'r') as f: xvfb_path = f.read().strip()
+        results = {
+            "Local wkhtmltopdf exists": os.path.exists(wk_path),
+            "Local xvfb-run exists": os.path.exists(xvfb_path),
+            "System wkhtmltopdf": bool(shutil.which('wkhtmltopdf')),
+            "System xvfb-run": bool(shutil.which('xvfb-run'))
+        }
+        
+        # Test pdfkit
+        try:
+            import pdfkit
+            results["pdfkit library"] = "Installed ✅"
+        except:
+            results["pdfkit library"] = "Missing ❌"
+            
+        # Test xhtml2pdf
+        try:
+            from xhtml2pdf import pisa
+            results["xhtml2pdf library"] = "Installed ✅"
+        except:
+            results["xhtml2pdf library"] = "Missing ❌"
 
-        html_content = f"""
+        html_diag = f"""
         <html>
-            <body style="font-family: sans-serif; padding: 40px;">
-                <h1 style="color: #1e40af;">Frozen Discovery Status: DEBUG ✅</h1>
-                <p><b>WKHTML Path (from build):</b> {wk_path}</p>
-                <p><b>XVFB Path (from build):</b> {xvfb_path}</p>
-                <p><b>Exists on disk?</b> {str(os.path.exists(wk_path))}</p>
+            <body style="font-family: sans-serif; padding: 40px; line-height: 1.6;">
+                <h1 style="color: #1e40af;">PDF Multi-Engine Debug 🛠️</h1>
+                <ul>
+                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in results.items()])}
+                </ul>
+                <hr>
+                <p>Ak vidíte "Local wkhtmltopdf exists: True", tak Engine 1 (pdfkit) by mal fungovať.</p>
+                <p>Ak nie, Engine 2 (xhtml2pdf) prevezme úlohu automaticky.</p>
             </body>
         </html>
         """
-        
-        config_path = wk_path
-        if xvfb_path and os.path.exists(xvfb_path):
-            config_path = f"{xvfb_path} -a {wk_path}"
-        
-        config = pdfkit.configuration(wkhtmltopdf=config_path)
-        pdf_output = pdfkit.from_string(html_content, False, configuration=config)
-        
-        response = make_response(pdf_output)
-        response.headers['Content-Type'] = 'application/pdf'
-        return response
+        return html_diag
+
+    except Exception as e:
+        import traceback
+        return f"<h1>Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
 
     except Exception as e:
         import traceback
