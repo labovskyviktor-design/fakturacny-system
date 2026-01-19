@@ -1,11 +1,19 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "glib", "libffi", "libxml2", "libxslt"]
+nixPkgs = ["python311", "gcc", "pkg-config", "cairo", "pango", "zlib", "libffi", "libxml2", "libxslt", "postgresql", "fontconfig", "dejavu_fonts"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+# Používame explicitne python3.11 a upgradujeme tooly pre lepšiu kompatibilitu
+cmds = [
+    "python3 -m venv /app/.venv",
+    "/app/.venv/bin/pip install --upgrade pip setuptools wheel",
+    "/app/.venv/bin/pip install -r requirements.txt"
+]
 
 [variables]
 PYTHONPATH = "."
+# Toto povie kompilátoru kde hľadať cairo a iné systémové veci
+PKG_CONFIG_PATH = "/nix/var/nix/profiles/default/lib/pkgconfig"
+LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib"
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --log-level debug"
+cmd = "/app/.venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
