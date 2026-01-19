@@ -27,86 +27,73 @@ def generate_qr_code_external(
     currency: str = 'EUR'
 ) -> Optional[str]:
     """
-    Generuje PAY by square QR kód pomocou externého API freebysquare.sk (v2)
+    Hybridná metóda:
+    1. Získa validný Bysquare string z externého API (generate-string)
+    2. Vygeneruje QR kód z tohto stringu lokálne (pre istotu kvality)
     """
     try:
-        # Params dict for v2 function
+        # 1. Získanie stringu z API
+        api_url = "https://api.freebysquare.sk/pay/v1/generate-string"
+        
+        # Format date for GET param (YYYYMMDD) - revert back from ISO if needed
+        # App sends YYYYMMDD usually, so just ensure it is string
+        date_str = str(due_date).replace('-', '') 
+        
         params = {
-            'amount': amount,
-            'currencyCode': currency,
+            'amount': f"{amount:.2f}",
             'iban': iban,
-            'bic': swift,
+            'currencyCode': currency,
+            'dueDate': date_str,
             'variableSymbol': variable_symbol,
             'constantSymbol': constant_symbol,
             'specificSymbol': specific_symbol,
             'paymentNote': note,
-            'dueDate': due_date,
             'beneficiaryName': beneficiary_name,
             'beneficiaryAddressLine1': beneficiary_address_1,
-            'beneficiaryAddressLine2': beneficiary_address_2
+            'beneficiaryAddressLine2': beneficiary_address_2,
         }
         
-        print(f"Volám externé API v2 (Primary) pre IBAN: {iban[:4]}...")
-        return _generate_qr_code_external_v2(params)
+        # Remove empty params to be clean
+        params = {k: v for k, v in params.items() if v}
         
-    except Exception as e:
-        print(f"Chyba pri príprave API v2: {e}")
-        return None
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Referer': 'https://fakturask.sk/'
+        }
 
-def _generate_qr_code_external_v2(params: dict) -> Optional[str]:
-    """Fallback na v2 POST API - vyžaduje inú štruktúru JSON"""
-    try:
-        api_url = "https://api.freebysquare.sk/pay/v1/generate-png-v2"
-        
-        # Fix Date Format for JSON API (YYYYMMDD -> YYYY-MM-DD)
-        date_str = str(params.get('dueDate', ''))
-        if len(date_str) == 8 and date_str.isdigit():
-            # Convert 20260120 -> 2026-01-20
-            date_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
-            
-        # Construct minimal valid payload
-        payment_data = {
-            "amount": round(float(params.get('amount', 0)), 2),
-            "currencyCode": params.get('currencyCode', 'EUR'),
-            "paymentDueDate": date_str,
-            "bankAccounts": [
-                {
-                    "iban": params.get('iban', ''),
-                }
-            ]
-        }
-        
-        # Add optional fields only if present
-        if params.get('variableSymbol'):
-            payment_data["variableSymbol"] = params['variableSymbol']
-        if params.get('constantSymbol'):
-            payment_data["constantSymbol"] = params['constantSymbol']
-        if params.get('specificSymbol'):
-            payment_data["specificSymbol"] = params['specificSymbol']
-        if params.get('paymentNote'):
-            payment_data["paymentNote"] = params['paymentNote']
-        if params.get('beneficiaryName'):
-            payment_data["beneficiaryName"] = params['beneficiaryName']
-        if params.get('bic'): # Add BIC only if provided
-             payment_data["bankAccounts"][0]["bic"] = params['bic']
-
-        v2_data = {
-            "size": 300,
-            "color": 1,
-            "transparent": False,
-            "payments": [payment_data]
-        }
-        
-        response = requests.post(api_url, json=v2_data, timeout=10)
+        print(f"Hybrid QR: Fetching string from {api_url}...")
+        response = requests.get(api_url, params=params, headers=headers, timeout=10)
         
         if response.status_code == 200:
-            png_bytes = response.content
-            b64_string = base64.b64encode(png_bytes).decode('ascii')
-            print("✓ QR kód vygenerovaný pomocou freebysquare.sk API v2")
+            qr_string = response.text.strip()
+            print(f"Hybrid QR: Got string len={len(qr_string)}")
+            
+            # 2. Lokálne renderovanie QR kódu
+            qr = qrcode.QRCode(
+                version=None,
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(qr_string)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            buffer = BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            
+            b64_string = base64.b64encode(buffer.getvalue()).decode('ascii')
             return f"data:image/png;base64,{b64_string}"
+            
+        else:
+            print(f"Hybrid QR API Error: {response.status_code} - {response.text}")
+            return None
+
     except Exception as e:
-        print(f"Chyba pri v2 fallback: {e}")
-    return None
+        print(f"Chyba pri Hybrid QR: {e}")
+        return None
 
 
 def crc32_bsqr(data: bytes) -> int:
