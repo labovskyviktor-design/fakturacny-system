@@ -1,17 +1,13 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts"]
+nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts", "findutils"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
 
 [variables]
 PYTHONPATH = "."
-# Autoritatívne cesty k binárkam v Nix prostredí
-WKHTMLTOPDF_PATH = "/nix/var/nix/profiles/default/bin/wkhtmltopdf"
-XVFB_PATH = "/nix/var/nix/profiles/default/bin/xvfb-run"
-# Pridáme stabilný profil do PATH
-PATH = "/nix/var/nix/profiles/default/bin:$PATH"
-LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
+# Pridáme cesty ku knižniciam ktoré wkhtmltopdf potrebuje
+LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib"
 
 [start]
-cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
+cmd = "bash bootstrap.sh"

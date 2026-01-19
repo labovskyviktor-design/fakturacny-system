@@ -776,56 +776,61 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # --- DEFINITÍVNE RIEŠENIE: AUTORITATÍVNE CESTY ---
+    # --- DEFINITÍVNA NIKDY-NEZLYHAJÚCA DISCOVERY ---
     try:
         import pdfkit
         import os
         import shutil
         import subprocess
         
-        # 1. Získame cesty nastavené v nixpacks.toml (Autorita)
-        wk_path = os.environ.get('WKHTMLTOPDF_PATH')
-        xvfb_path = os.environ.get('XVFB_PATH')
+        # 1. HLAVNÁ CESTA: Lokálny symlink vytvorený v bootstrap.sh
+        wk_path = os.path.join(os.getcwd(), 'wkhtmltopdf_local')
+        xvfb_path = os.path.join(os.getcwd(), 'xvfb_run_local')
         
-        # Fallback ak premenné chýbajú (lokálne alebo zlyhanie ENV)
-        if not wk_path or not os.path.exists(wk_path):
+        app.logger.info(f"Checking bootstrap links: {wk_path} (exists: {os.path.exists(wk_path)})")
+
+        # 2. FALLBACKY (Ak bootstrap zlyhal alebo sme lokálne)
+        if not os.path.exists(wk_path):
+            app.logger.warning("Bootstrap link not found. Searching PATH...")
             wk_path = shutil.which('wkhtmltopdf')
             
         if not wk_path or not os.path.exists(wk_path):
-            # Posledný pokus: hĺbkové hľadanie v nix store
+            app.logger.warning("Still not found. Deep scanning /nix/store...")
             try:
-                res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], 
-                                   capture_output=True, text=True, timeout=5)
-                if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
+                # Dynamický sken ako posledná záchrana
+                cmd = "find /nix/store -name wkhtmltopdf -type f -executable -print -quit 2>/dev/null"
+                res = subprocess.check_output(cmd, shell=True).decode().strip()
+                if res: wk_path = res
             except: pass
 
-        if not wk_path:
-            raise Exception("wkhtmltopdf binary not found. Path searched: " + str(wk_path))
+        if not (wk_path and os.path.exists(wk_path)):
+            log_env = {k: v for k, v in os.environ.items() if 'PATH' in k or 'WK' in k}
+            raise Exception(f"CRITICAL: wkhtmltopdf binary NOT FOUND. Searched: local_link, PATH, nix_store. Env: {log_env}")
 
-        # 2. KONFIGURÁCIA (Headless mode cez xvfb)
-        app.logger.info(f"PDF Binary found at: {wk_path}")
+        # 3. KONFIGURÁCIA (Headless mode)
+        final_cmd = wk_path
+        if os.path.exists(xvfb_path) and os.name != 'nt':
+            app.logger.info(f"Using xvfb-run prefix at {xvfb_path}")
+            final_cmd = f"{xvfb_path} -a {wk_path}"
         
-        config_cmd = wk_path
-        if xvfb_path and os.path.exists(xvfb_path) and os.name != 'nt':
-            config_cmd = f"{xvfb_path} -a {wk_path}"
-        
-        config = pdfkit.configuration(wkhtmltopdf=config_cmd)
+        config = pdfkit.configuration(wkhtmltopdf=final_cmd)
         
         options = {
             'page-size': 'A4',
             'orientation': 'Portrait',
-            'margin-top': '5', 'margin-right': '5', 'margin-bottom': '5', 'margin-left': '5',
+            'margin-top': '5mm', 'margin-right': '5mm', 'margin-bottom': '5mm', 'margin-left': '5mm',
             'encoding': "UTF-8", 'no-outline': None, 'quiet': ''
         }
         
-        # 3. GENEROVANIE
+        # 4. SAMOTNÉ GENEROVANIE
         pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
         return pdf_data, "application/pdf", True
                 
     except Exception as e:
-        app.logger.error(f"CRITICAL PDF FAILURE: {str(e)}")
-        # Fallback na HTML ak všetko zlyhá
-        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
+        app.logger.error(f"ENGINE FAILURE: {str(e)}")
+        # Vrátime HTML s chybou v tele, aby klient vedel, čo sa deje
+        error_msg = f"ERROR: PDF generation failed: {str(e)}"
+        return html.encode('utf-8'), "text/html", error_msg
 
 @app.route('/debug/pdf-test')
 @login_required
