@@ -89,11 +89,15 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
             if reg_size < 1000:
                 raise ValueError(f"Font file too small ({reg_size} bytes): {regular_font}")
         
+        # Use a unique name to prevent caching issues
         if os.path.exists(regular_font) and os.path.exists(bold_font):
-            registerFont(TTFont('DejaVu', regular_font))
-            registerFont(TTFont('DejaVu-Bold', bold_font))
-            font_name = 'DejaVu'
-            font_bold = 'DejaVu-Bold'
+            registerFont(TTFont('CustomSlovak', regular_font))
+            registerFont(TTFont('CustomSlovak-Bold', bold_font))
+            font_name = 'CustomSlovak'
+            font_bold = 'CustomSlovak-Bold'
+            
+            # SUCCESS DEBUG (Will clearly show which file won)
+            font_loading_error = f"SUCCESS: Loaded {regular_font} ({reg_size} bytes)"
         else:
             font_loading_error = f"Fonts not found at: {regular_font}"
             print(font_loading_error)
@@ -120,19 +124,24 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     
     y_position = top_margin
 
-    # Debug: Print font loading error if any
+    # Debug: Print font loading status (Success or Error)
     if font_loading_error:
-        c.setFont("Helvetica-Bold", 10)
-        c.setFillColor(colors.red)
-        c.drawString(left_margin, height - 20, f"DEBUG ERROR: {font_loading_error}")
-        # Draw path info
-        try:
-            current_path = os.path.abspath(__file__)
-            c.drawString(left_margin, height - 35, f"File path: {current_path}")
-            c.drawString(left_margin, height - 50, f"CWD: {os.getcwd()}")
-        except:
-            pass
-        y_position -= 40
+        c.setFont("Helvetica-Bold", 8)
+        if "SUCCESS" in font_loading_error:
+            c.setFillColor(colors.blue)
+        else:
+            c.setFillColor(colors.red)
+            
+        c.drawString(left_margin, height - 10, f"FONT DEBUG: {font_loading_error}")
+        
+        # Draw path info only on error or if requested
+        if "error" in font_loading_error.lower():
+            try:
+                current_path = os.path.abspath(__file__)
+                c.drawString(left_margin, height - 20, f"File path: {current_path}")
+            except:
+                pass
+        y_position -= 20
     
     # === HEADER ===
     c.setStrokeColor(primary_blue)
