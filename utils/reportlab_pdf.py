@@ -188,8 +188,8 @@ class InvoicePDF:
             ('RIGHTPADDING', (0,0), (0,0), 10),
             ('LEFTPADDING', (1,0), (1,0), 10),   # Right col padding
             ('RIGHTPADDING', (1,0), (1,0), 0),
-            # Vertical Separator (Dotted hopefully, or solid light)
-            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border, "dotted"), # Middle line
+            # Vertical Separator (Solid for now to prevent crash)
+            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border), # Middle line
         ]))
         return t
 
@@ -233,7 +233,7 @@ class InvoicePDF:
         t.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border, "dotted"), # Separator
+            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border), # Separator
         ]))
         return t
 
