@@ -58,7 +58,12 @@ def _generate_qr_code_external_v2(params: dict) -> Optional[str]:
     try:
         api_url = "https://api.freebysquare.sk/pay/v1/generate-png-v2"
         
-        # Transformácia params na v2 štruktúru
+        # Fix Date Format for JSON API (YYYYMMDD -> YYYY-MM-DD)
+        date_str = str(params.get('dueDate', ''))
+        if len(date_str) == 8 and date_str.isdigit():
+            # Convert 20260120 -> 2026-01-20
+            date_str = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]}"
+            
         v2_data = {
             "size": 300,
             "color": 1,
@@ -67,7 +72,7 @@ def _generate_qr_code_external_v2(params: dict) -> Optional[str]:
                 {
                     "amount": float(params.get('amount', 0)),
                     "currencyCode": params.get('currencyCode', 'EUR'),
-                    "paymentDueDate": params.get('dueDate', ''),
+                    "paymentDueDate": date_str,
                     "variableSymbol": params.get('variableSymbol', ''),
                     "constantSymbol": params.get('constantSymbol', ''),
                     "specificSymbol": params.get('specificSymbol', ''),
