@@ -278,6 +278,16 @@ class InvoicePDF:
         ]))
         return t
 
+    def footer_canvas(self, canvas, doc):
+        """Fixed footer"""
+        canvas.saveState()
+        canvas.setFont(self.font_reg, 7)
+        canvas.setFillColor(self.c_text_light)
+        # Center text
+        text = f"Generované systémom FakturaSK | v3.3 Reference | Strana {doc.page}"
+        canvas.drawCentredString(A4[0]/2, 10*mm, text)
+        canvas.restoreState()
+
     def generate(self):
         doc = SimpleDocTemplate(
             self.buffer,
