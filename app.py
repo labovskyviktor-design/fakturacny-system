@@ -776,40 +776,24 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez pdfkit (wkhtmltopdf) s runtime premennými z entrypoint.sh
+    # Generovanie PDF cez pdfkit a wkhtmltopdf-binary (VLASTNÁ BINÁRKA V PYTHONE)
     try:
         import pdfkit
+        import wkhtmltopdf_binary
         import os
         import shutil
         
-        # 1. Získame cesty nastavené v entrypoint.sh
-        wk_path = os.environ.get('WKHTMLTOPDF_PATH')
-        xvfb_path = os.environ.get('XVFB_PATH')
+        # 1. Získame cestu k binárke priamo z nainštalovaného balíka (Garantovaná cesta)
+        wk_path = wkhtmltopdf_binary.get_wkhtmltopdf_path()
+        app.logger.info(f"Using self-contained wkhtmltopdf binary at: {wk_path}")
         
-        # Fallback ak premenné nie sú nastavené (napr. lokálne)
-        if not wk_path or not os.path.exists(wk_path):
-            wk_path = shutil.which('wkhtmltopdf')
-            
-        if not (wk_path and os.path.exists(wk_path)):
-            app.logger.warning("wkhtmltopdf binary not found in env or path. Trying deep search...")
-            # Posledný pokus cez find priamo z Pythonu
-            import subprocess
-            try:
-                res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], 
-                                   capture_output=True, text=True, timeout=5)
-                if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
-            except: pass
-
-        if not wk_path:
-            raise Exception("wkhtmltopdf binary not found. Environment: " + str(os.environ.get('PATH')))
-
-        # 2. Nastavenie konfigurácie
-        # Ak máme xvfb-run, použijeme ho ako prefix
-        if xvfb_path and os.path.exists(xvfb_path):
-            app.logger.info(f"Using wkhtmltopdf with xvfb at {wk_path}")
+        # 2. Nastavenie xvfb pre headless prostredie (Railway)
+        xvfb_path = shutil.which('xvfb-run')
+        
+        if xvfb_path and os.name != 'nt':
+            # Povieme pdfkit-u, aby bežal cez xvfb-run -a
             config = pdfkit.configuration(wkhtmltopdf=f"{xvfb_path} -a {wk_path}")
         else:
-            app.logger.info(f"Using wkhtmltopdf at {wk_path}")
             config = pdfkit.configuration(wkhtmltopdf=wk_path)
 
         options = {
@@ -824,12 +808,13 @@ def _get_invoice_pdf_data(invoice):
             'quiet': ''
         }
         
+        # 3. Samotné generovanie
         pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
         return pdf_data, "application/pdf", True
                 
     except Exception as e:
-        app.logger.error(f"pdfkit generation failed: {str(e)}")
-        # Ak zlyhá všetko, vrátime HTML faktúru
+        app.logger.error(f"PDF generation failed: {str(e)}")
+        # Ak by zlyhal pdfkit, vrátime aspoň HTML s chybou
         return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
 
 @app.route('/debug/pdf-test')
@@ -841,29 +826,27 @@ def debug_pdf_test():
         
     try:
         import pdfkit
+        import wkhtmltopdf_binary
         import shutil
         import os
         
-        wk_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
-        xvfb_path = os.environ.get('XVFB_PATH') or shutil.which('xvfb-run')
+        wk_path = wkhtmltopdf_binary.get_wkhtmltopdf_path()
+        xvfb_path = shutil.which('xvfb-run')
         
         html_content = f"""
         <html>
             <body style="font-family: sans-serif; padding: 40px;">
-                <h1 style="color: #1e40af;">pdfkit Status: DEBUG ✅</h1>
-                <p><b>WKHTMLTOPDF_PATH (ENV):</b> {os.environ.get('WKHTMLTOPDF_PATH')}</p>
-                <p><b>XVFB_PATH (ENV):</b> {os.environ.get('XVFB_PATH')}</p>
-                <p><b>Detected wkhtmltopdf:</b> {wk_path}</p>
-                <p><b>Detected xvfb-run:</b> {xvfb_path}</p>
-                <p>PATH: {os.environ.get('PATH')}</p>
+                <h1 style="color: #1e40af;">Self-Contained PDF Status: SUCCESS ✅</h1>
+                <p><b>Binary Path:</b> {wk_path}</p>
+                <p><b>Xvfb Path:</b> {xvfb_path}</p>
+                <p>Ak toto vidíte, binárka sa úspešne našla vo vnútri aplikácie.</p>
             </body>
         </html>
         """
         
-        if not wk_path: return f"<h1>Error</h1><p>wkhtmltopdf not found.</p><pre>{str(os.environ)}</pre>", 500
-
         config_path = wk_path
-        if xvfb_path: config_path = f"{xvfb_path} -a {wk_path}"
+        if xvfb_path and os.name != 'nt':
+            config_path = f"{xvfb_path} -a {wk_path}"
         
         config = pdfkit.configuration(wkhtmltopdf=config_path)
         pdf_output = pdfkit.from_string(html_content, False, configuration=config)
