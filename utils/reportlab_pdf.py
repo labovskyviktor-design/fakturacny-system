@@ -59,9 +59,14 @@ class InvoicePDF:
         self.invoice = invoice
         self.qr_code_base64 = qr_code_base64
         self.buffer = io.BytesIO()
-        
-        # Register fonts immediately
         self.font_reg, self.font_bold = register_fonts()
+        
+        # Modern Color Palette
+        self.c_primary = colors.HexColor('#2563eb')    # Bright Blue
+        self.c_text = colors.HexColor('#334155')       # Slate 700
+        self.c_text_light = colors.HexColor('#64748b') # Slate 500
+        self.c_border = colors.HexColor('#cbd5e1')     # Slate 300
+        self.c_bg_light = colors.HexColor('#f8fafc')   # Slate 50
         
         # Styles
         styles = getSampleStyleSheet()
@@ -69,9 +74,18 @@ class InvoicePDF:
             'SlovakNormal', 
             parent=styles['Normal'],
             fontName=self.font_reg,
-            fontSize=9,
-            textColor=TEXT_COLOR,
-            leading=12
+            fontSize=8.5, # Compact font
+            textColor=self.c_text,
+            leading=10,
+            allowWidows=0,
+            allowOrphans=0
+        )
+        self.style_label = ParagraphStyle(
+            'SlovakLabel',
+            parent=self.style_normal,
+            fontSize=7,
+            textColor=self.c_text_light,
+            textTransform='uppercase'
         )
         self.style_bold = ParagraphStyle(
             'SlovakBold', 
@@ -82,115 +96,80 @@ class InvoicePDF:
             'SlovakTitle',
             parent=styles['Heading1'],
             fontName=self.font_bold,
-            fontSize=24,
-            textColor=PRIMARY_COLOR,
-            spaceAfter=20
+            fontSize=22,
+            textColor=self.c_primary,
+            spaceAfter=5
         )
-        
+
     def _create_header(self):
-        """Header with Title and Supplier Quick Info"""
-        # Right side: Supplier partial info
-        supplier_text = f"""
-        <b>{self.invoice.supplier.name}</b><br/>
-        {self.invoice.supplier.street}<br/>
-        {self.invoice.supplier.zip_code} {self.invoice.supplier.city}
-        """
-        
-        data = [
-            [Paragraph("FAKTÚRA", self.style_title), 
-             Paragraph(supplier_text, ParagraphStyle('HeaderRight', parent=self.style_normal, alignment=TA_RIGHT))]
+        """Compact Header"""
+        supplier_block = [
+            Paragraph("DODÁVATEĽ", self.style_label),
+            Paragraph(f"<b>{self.invoice.supplier.name}</b>", self.style_normal),
+            Paragraph(f"{self.invoice.supplier.street}", self.style_normal),
+            Paragraph(f"{self.invoice.supplier.zip_code} {self.invoice.supplier.city}", self.style_normal),
+            Paragraph(f"{self.invoice.supplier.country}", self.style_normal),
+            Spacer(1, 2),
+            Paragraph(f"IČO: {self.invoice.supplier.ico}", self.style_normal) if self.invoice.supplier.ico else "",
+            Paragraph(f"DIČ: {self.invoice.supplier.dic}", self.style_normal) if self.invoice.supplier.dic else "",
         ]
         
-        t = Table(data, colWidths=[10*cm, 9*cm])
-        t.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LINEBELOW', (0,0), (-1,-1), 2, PRIMARY_COLOR),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 15),
-        ]))
-        return t
-
-    def _create_info_grid(self):
-        """Supplier and Client Boxes"""
-        # Function to build address paragraph
-        def build_addr(obj, title):
-            lines = [f"<b>{title}</b>", f"<font size=12 color={PRIMARY_COLOR}>{obj.name}</font>"]
-            lines.append(f"{obj.street}")
-            lines.append(f"{obj.zip_code} {obj.city}")
-            lines.append(f"{obj.country}")
-            lines.append(f"<br/>") # Spacer
-            if obj.ico: lines.append(f"<b>IČO:</b> {obj.ico}")
-            if obj.dic: lines.append(f"<b>DIČ:</b> {obj.dic}")
-            if hasattr(obj, 'ic_dph') and obj.ic_dph: lines.append(f"<b>IČ DPH:</b> {obj.ic_dph}")
-            return Paragraph("<br/>".join(lines), self.style_normal)
-
-        supplier_p = build_addr(self.invoice.supplier, "DODÁVATEĽ")
-        client_p = build_addr(self.invoice.client, "ODBERATEĽ")
-        
-        data = [[supplier_p, client_p]]
-        t = Table(data, colWidths=[9.5*cm, 9.5*cm])
-        t.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('grid', (0,0), (-1,-1), 0.5, BORDER_COLOR),
-            ('BACKGROUND', (0,0), (0,0), colors.HexColor('#f8fafc')), # Light gray background for supplier
-            ('LEFTPADDING', (0,0), (-1,-1), 12),
-            ('RIGHTPADDING', (0,0), (-1,-1), 12),
-            ('TOPPADDING', (0,0), (-1,-1), 12),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 12),
-        ]))
-        return t
-
-    def _create_meta_table(self):
-        """Dates and Numbers"""
-        data = [
-            [
-                f"Variabilný symbol:\n<b>{self.invoice.variable_symbol}</b>",
-                f"Dátum vystavenia:\n<b>{format_date_sk(self.invoice.issue_date)}</b>"
-            ],
-            [
-                f"Forma úhrady:\n<b>{'Bankový prevod' if self.invoice.payment_method=='prevod' else 'Hotovosť'}</b>",
-                f"Dátum dodania:\n<b>{format_date_sk(self.invoice.delivery_date)}</b>"
-            ],
-            [
-                f"Mena:\n<b>EUR</b>",
-                f"Dátum splatnosti:\n<font color='red'><b>{format_date_sk(self.invoice.due_date)}</b></font>"
-            ],
-            [  # Add Invoice Number here neatly
-               f"Číslo faktúry:\n<b>{self.invoice.invoice_number}</b>",
-               ""
-            ]
-
+        client_block = [
+            Paragraph("ODBERATEĽ", self.style_label),
+            Paragraph(f"<b>{self.invoice.client.name}</b>", self.style_normal),
+            Paragraph(f"{self.invoice.client.street}", self.style_normal),
+            Paragraph(f"{self.invoice.client.zip_code} {self.invoice.client.city}", self.style_normal),
+            Paragraph(f"{self.invoice.client.country}", self.style_normal),
+            Spacer(1, 2),
+            Paragraph(f"IČO: {self.invoice.client.ico}", self.style_normal) if self.invoice.client.ico else "",
+            Paragraph(f"DIČ: {self.invoice.client.dic}", self.style_normal) if self.invoice.client.dic else "",
         ]
         
-        # Convert strings to Paragraphs
-        p_data = []
-        for row in data:
-            p_row = []
-            for cell in row:
-                if cell:
-                    p_row.append(Paragraph(cell.replace('\n', '<br/>'), self.style_normal))
-                else:
-                    p_row.append('')
-            p_data.append(p_row)
-            
-        t = Table(p_data, colWidths=[9.5*cm, 9.5*cm])
+        # Meta info (Dates/Numbers) as a clean list
+        meta_data = [
+            [Paragraph("Faktúra č.:", self.style_label), Paragraph(f"<b>{self.invoice.invoice_number}</b>", self.style_normal)],
+            [Paragraph("Dátum vystavenia:", self.style_label), Paragraph(f"{format_date_sk(self.invoice.issue_date)}", self.style_normal)],
+            [Paragraph("Dátum dodania:", self.style_label), Paragraph(f"{format_date_sk(self.invoice.delivery_date)}", self.style_normal)],
+            [Paragraph("Dátum splatnosti:", self.style_label), Paragraph(f"<b>{format_date_sk(self.invoice.due_date)}</b>", self.style_normal)],
+            [Paragraph("Variabilný symbol:", self.style_label), Paragraph(f"{self.invoice.variable_symbol}", self.style_normal)],
+        ]
+        
+        meta_table = Table(meta_data, colWidths=[3.5*cm, 4*cm])
+        meta_table.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+        ]))
+        
+        # Main Layout: 3 Columns [Supplier | Client | Meta]
+        main_data = [[
+            [Paragraph("FAKTÚRA", self.style_title), Spacer(1,5)] + supplier_block,
+            client_block,
+            meta_table
+        ]]
+        
+        t = Table(main_data, colWidths=[7*cm, 7*cm, 5*cm])
         t.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR),
+            ('GRID', (0,0), (-1,-1), 0.5, self.c_border),
+            ('BACKGROUND', (0,0), (-1,-1), colors.white),
             ('LEFTPADDING', (0,0), (-1,-1), 10),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+            ('TOPPADDING', (0,0), (-1,-1), 10),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ('ROUNDEDCORNERS', [0,0,0,0]),
         ]))
         return t
 
     def _create_items_table(self):
-        """Line items"""
-        headers = ["Popis položky", "Množstvo", "Jedn.", "Cena/j.", "Spolu"]
-        data = [headers]
+        """Modern Striped Items Table"""
+        headers = ["Popis položky/Služby", "Množstvo", "MJ", "Cena za j.", "Spolu"]
+        data = [[Paragraph(h, ParagraphStyle('Header', parent=self.style_label, textColor=colors.white)) for h in headers]]
         
-        for item in self.invoice.items:
+        for i, item in enumerate(self.invoice.items):
             desc = item.description
             if item.item_note:
-                desc += f"<br/><font size=8 color='#64748b'>{item.item_note}</font>"
+                desc += f"<br/><font size=7 color='#64748b'>{item.item_note}</font>"
             
             row = [
                 Paragraph(desc, self.style_normal),
@@ -201,150 +180,109 @@ class InvoicePDF:
             ]
             data.append(row)
             
-        t = Table(data, colWidths=[8*cm, 2.5*cm, 2*cm, 3*cm, 3.5*cm])
+        t = Table(data, colWidths=[8.5*cm, 2.5*cm, 1.5*cm, 3*cm, 3.5*cm], repeatRows=1)
         
-        # Styles
-        style = [
-            ('BACKGROUND', (0,0), (-1,0), PRIMARY_COLOR),
+        # Zebra Striping
+        styles = [
+            ('BACKGROUND', (0,0), (-1,0), self.c_primary), # Header Bg
             ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('FONTNAME', (0,0), (-1,0), self.font_bold),
             ('ALIGN', (0,0), (-1,0), 'LEFT'),
-            ('ALIGN', (1,0), (-1,-1), 'RIGHT'), # Numbers right aligned
-            ('FONTNAME', (0,1), (-1,-1), self.font_reg),
-            ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR),
+            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('TOPPADDING', (0,0), (-1,-1), 8),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-            ('LEFTPADDING', (0,0), (0,-1), 10), # Padding for description
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LINEBELOW', (0,0), (-1,-1), 0.5, self.c_bg_light),
         ]
-        t.setStyle(TableStyle(style))
+        
+        # Add alternating background
+        for i in range(1, len(data)):
+            if i % 2 == 0:
+                styles.append(('BACKGROUND', (0,i), (-1,i), self.c_bg_light))
+                
+        t.setStyle(TableStyle(styles))
         return t
         
-    def _create_totals(self):
-        """Totals section"""
-        data = []
-        data.append(["Základ pre DPH:", format_currency(self.invoice.subtotal)])
+    def _create_footer_section(self):
+        """Totals + Payment + QR in one compact block"""
+        
+        # Totals Table
+        totals_data = []
+        totals_data.append([Paragraph("Základ DPH:", self.style_normal), format_currency(self.invoice.subtotal)])
         if self.invoice.vat_rate > 0:
-            data.append([f"DPH ({int(self.invoice.vat_rate)}%):", format_currency(self.invoice.vat_amount)])
+             totals_data.append([Paragraph(f"DPH {int(self.invoice.vat_rate)}%:", self.style_normal), format_currency(self.invoice.vat_amount)])
         
-        # Total
-        total_p = Paragraph(f"<b>Celkom k úhrade:</b>", ParagraphStyle('TotalLabel', parent=self.style_normal, fontSize=12))
-        total_val = Paragraph(f"<b>{format_currency(self.invoice.total)}</b>", ParagraphStyle('TotalVal', parent=self.style_normal, fontSize=14, textColor=PRIMARY_COLOR, alignment=TA_RIGHT))
+        total_p = Paragraph(f"<b>{format_currency(self.invoice.total)}</b>", ParagraphStyle('TotalBig', parent=self.style_bold, fontSize=16, textColor=self.c_primary, alignment=TA_RIGHT))
+        totals_data.append([Paragraph("<b>K ÚHRADE SPOLU:</b>", self.style_bold), total_p])
         
-        data.append([total_p, total_val])
-        
-        t = Table(data, colWidths=[14*cm, 5*cm])
-        t.setStyle(TableStyle([
+        totals_table = Table(totals_data, colWidths=[4*cm, 4*cm])
+        totals_table.setStyle(TableStyle([
             ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-            ('LINEABOVE', (0,-1), (-1,-1), 1, PRIMARY_COLOR),
-            ('TOPPADDING', (0,-1), (-1,-1), 10),
-            ('FONTNAME', (0,0), (-1,-1), self.font_reg),
+            ('LINEABOVE', (0,-1), (-1,-1), 1, self.c_primary),
+            ('TOPPADDING', (0,-1), (-1,-1), 8),
         ]))
-        return t
-
-    def _create_qr_and_bank(self):
-        """Bank details and QR code"""
-        if self.invoice.payment_method != 'prevod':
-            return Spacer(1, 1)
-
-        # Bank info text
-        bank_lines = [
-            f"<b>BANKOVÉ SPOJENIE</b>",
-            f"IBAN: <font color={PRIMARY_COLOR} size=11><b>{self.invoice.supplier.iban}</b></font>"
-        ]
-        if self.invoice.supplier.bank_name:
-            bank_lines.append(f"Banka: {self.invoice.supplier.bank_name}")
+        
+        # Payment Info
+        pay_lines = [Paragraph("PLATOBNÉ ÚDAJE", self.style_label)]
+        if self.invoice.payment_method == 'prevod' and self.invoice.supplier.iban:
+            pay_lines.append(Paragraph(f"IBAN: <b>{self.invoice.supplier.iban}</b>", self.style_normal))
+            if self.invoice.supplier.bank_name:
+                pay_lines.append(Paragraph(f"Banka: {self.invoice.supplier.bank_name}", self.style_normal))
+        else:
+            pay_lines.append(Paragraph(f"Forma úhrady: {self.invoice.payment_method}", self.style_normal))
             
-        bank_p = Paragraph("<br/>".join(bank_lines), self.style_normal)
+        pay_col = [pay_lines] # Column 1 content
         
         # QR Code
-        qr_img = None
+        qr_flowable = Spacer(1,1)
         if self.qr_code_base64:
-            try:
-                # Remove header if present
+             try:
                 img_data = self.qr_code_base64.split(',')[1] if ',' in self.qr_code_base64 else self.qr_code_base64
                 img_bytes = base64.b64decode(img_data)
-                qr_stream = io.BytesIO(img_bytes)
-                qr_img = PlatypusImage(qr_stream, width=3.5*cm, height=3.5*cm)
-            except Exception as e:
-                print(f"QR Error: {e}")
-
-        # Label for QR
-        qr_label = Paragraph("PAY by square", ParagraphStyle('Small', parent=self.style_normal, fontSize=7, alignment=TA_CENTER))
-
-        # Layout: Bank Info | QR Code
-        if qr_img:
-            data = [[bank_p, [qr_img, qr_label]]]
-            col_widths = [14*cm, 5*cm]
-        else:
-            data = [[bank_p, ""]]
-            col_widths = [14*cm, 5*cm]
-
-        t = Table(data, colWidths=col_widths)
+                qr_img = PlatypusImage(io.BytesIO(img_bytes), width=3*cm, height=3*cm)
+                qr_flowable = qr_img
+             except: pass
+             
+        # Combined Footer Table: [ Payment Info | QR Code | Totals ]
+        foot_data = [[
+            pay_col,
+            [qr_flowable, Paragraph("PAY by square", self.style_label)] if self.qr_code_base64 else "",
+            totals_table
+        ]]
+        
+        t = Table(foot_data, colWidths=[7*cm, 4*cm, 8*cm])
         t.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('ALIGN', (1,0), (1,-1), 'CENTER'),
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-            ('LEFTPADDING', (0,0), (-1,-1), 15),
-            ('TOPPADDING', (0,0), (-1,-1), 15),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 15),
-            ('ROUNDEDCORNERS', [8, 8, 8, 8]), # Note: ReportLab table rounded corners isn't direct, but we can fake background
+            ('ALIGN', (2,0), (2,-1), 'RIGHT'),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
         ]))
         return t
 
-    def footer(self, canvas, doc):
-        """Fixed footer"""
+    def footer_canvas(self, canvas, doc):
         canvas.saveState()
-        canvas.setFont(self.font_reg, 8)
-        canvas.setFillColor(colors.gray)
-        
-        # Center text
-        text = f"Generované systémom FakturaSK | v3.0 Platypus | Strana {doc.page}"
-        canvas.drawCentredString(A4[0]/2, 10*mm, text)
-        
-        # Font usage debug
-        canvas.setFillColor(colors.blue)
-        canvas.drawString(10*mm, A4[1]-10*mm, f"FONT: {self.font_reg} (Arial)")
-        
+        canvas.setFont(self.font_reg, 7)
+        canvas.setFillColor(self.c_text_light)
+        canvas.drawCentredString(A4[0]/2, 10*mm, "Faktúra slúži zároveň ako dodací list. • Vygenerované cez FakturaSK")
         canvas.restoreState()
 
     def generate(self):
+        # Minimized margins for max space
         doc = SimpleDocTemplate(
             self.buffer,
             pagesize=A4,
-            rightMargin=1.5*cm,
-            leftMargin=1.5*cm,
-            topMargin=1.5*cm,
-            bottomMargin=2*cm
+            rightMargin=1*cm,
+            leftMargin=1*cm,
+            topMargin=1*cm,
+            bottomMargin=1.5*cm
         )
         
         story = []
-        
         story.append(self._create_header())
-        story.append(Spacer(1, 10*mm))
-        
-        story.append(self._create_info_grid())
-        story.append(Spacer(1, 5*mm))
-        
-        story.append(self._create_meta_table())
-        story.append(Spacer(1, 10*mm))
-        
+        story.append(Spacer(1, 0.8*cm))
         story.append(self._create_items_table())
-        story.append(Spacer(1, 10*mm))
+        story.append(Spacer(1, 1*cm))
+        story.append(self._create_footer_section())
         
-        story.append(self._create_totals())
-        story.append(Spacer(1, 10*mm))
-        
-        from utils import suma_slovom
-        slovom = suma_slovom(self.invoice.total)
-        story.append(Paragraph(f"<b>Suma slovom:</b> {slovom}", self.style_normal))
-        story.append(Spacer(1, 10*mm))
-        
-        story.append(self._create_qr_and_bank())
-        
-        # Build
-        doc.build(story, onFirstPage=self.footer)
-        
+        doc.build(story, onFirstPage=self.footer_canvas)
         return self.buffer.getvalue()
 
 
