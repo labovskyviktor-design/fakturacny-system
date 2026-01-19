@@ -796,9 +796,9 @@ def _get_invoice_pdf_data(invoice):
         app.logger.error(traceback.format_exc())
         app.logger.info("=" * 60)
         
-        # Fallback to HTML
-        html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
-        return html.encode('utf-8'), "text/html", error_msg
+        # Fallback to HTML - DISABLE SILENT FALLBACK TO DEBUG
+        # html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
+        return f"CRITICAL ERROR: ReportLab Import Failed. {error_msg}".encode('utf-8'), "text/plain", error_msg
         
     except Exception as e:
         error_msg = f"PDF generation failed: {str(e)}"
@@ -807,9 +807,9 @@ def _get_invoice_pdf_data(invoice):
         app.logger.error(traceback.format_exc())
         app.logger.info("=" * 60)
         
-        # Fallback to HTML
-        html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
-        return html.encode('utf-8'), "text/html", error_msg
+        # Fallback to HTML - DISABLE SILENT FALLBACK TO DEBUG
+        # html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
+        return f"CRITICAL ERROR: ReportLab Crashed. {error_msg}".encode('utf-8'), "text/plain", error_msg
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -960,9 +960,14 @@ def invoice_pdf(invoice_id):
         error_msg = result if isinstance(result, str) else "Neznáma chyba"
         flash(f"Generovanie PDF zlyhalo: {error_msg}. Stiahnutá HTML verzia.", 'warning')
         
+    import time
+    ts = int(time.time())
     response = make_response(pdf_data)
     response.headers['Content-Type'] = content_type
-    response.headers['Content-Disposition'] = f'attachment; filename=faktura_{invoice.invoice_number}.{ext}'
+    response.headers['Content-Disposition'] = f'attachment; filename=faktura_{invoice.invoice_number}_{ts}.{ext}'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 

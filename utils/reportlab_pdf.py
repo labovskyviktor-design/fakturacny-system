@@ -436,7 +436,10 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     c.setFillColor(text_gray)
     footer_text = "Nie sme platcami DPH podľa §4 zákona č. 222/2004 Z.z. o DPH." if not invoice.supplier.is_vat_payer else "Platca DPH."
     c.drawCentredString(width / 2, y_position - 15, footer_text)
-    c.drawCentredString(width / 2, y_position - 28, "Generované systémom FakturaSK")
+    
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    c.drawCentredString(width / 2, y_position - 28, f"Generované systémom FakturaSK/ReportLab v2.0 | {timestamp}")
     
     # Watermarks for status
     if invoice.status == 'cancelled':
