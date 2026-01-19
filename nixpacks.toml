@@ -3,6 +3,8 @@ nixPkgs = [
     "python311",
     "gcc",
     "postgresql",
+    "pkg-config",
+    "gobject-introspection",
     "weasyprint",
     "pango",
     "cairo",
@@ -24,9 +26,10 @@ cmds = ["pip install -r requirements.txt"]
 
 [variables]
 PYTHONPATH = "."
-# Agresívne nastavenie ciest pre knižnice a fonty
-LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
+# Enhanced library paths for WeasyPrint and GObject
+LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:/nix/store/*-glib-*/lib:/nix/store/*-cairo-*/lib:/nix/store/*-pango-*/lib:$LD_LIBRARY_PATH"
 LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:$LIBRARY_PATH"
+PKG_CONFIG_PATH = "/nix/var/nix/profiles/default/lib/pkgconfig:$PKG_CONFIG_PATH"
 XDG_DATA_DIRS = "/nix/var/nix/profiles/default/share:$XDG_DATA_DIRS"
 GI_TYPELIB_PATH = "/nix/var/nix/profiles/default/lib/girepository-1.0"
 FONTCONFIG_FILE = "/nix/var/nix/profiles/default/etc/fonts/fonts.conf"
