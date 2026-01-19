@@ -27,62 +27,30 @@ def generate_qr_code_external(
     currency: str = 'EUR'
 ) -> Optional[str]:
     """
-    Generuje PAY by square QR kód pomocou externého API freebysquare.sk
-    
-    Returns:
-        Base64 encoded PNG image alebo None pri chybe
+    Generuje PAY by square QR kód pomocou externého API freebysquare.sk (v2)
     """
     try:
-        # Očistíme IBAN
-        iban = iban.replace(' ', '').replace('-', '').upper()
-        
-        # URL pre GET request (najspoľahlivejší spôsob pre v1)
-        api_url = "https://api.freebysquare.sk/pay/v1/generate-png"
-        
-        # Parametre
+        # Params dict for v2 function
         params = {
-            'iban': iban,
-            'amount': f"{amount:.2f}",
+            'amount': amount,
             'currencyCode': currency,
+            'iban': iban,
+            'bic': swift,
             'variableSymbol': variable_symbol,
             'constantSymbol': constant_symbol,
             'specificSymbol': specific_symbol,
+            'paymentNote': note,
+            'dueDate': due_date,
             'beneficiaryName': beneficiary_name,
-            'paymentNote': note[:140] if note else '',
-            'size': 300,
-            'color': '1', # čierna
-            'transparent': 'false'
+            'beneficiaryAddressLine1': beneficiary_address_1,
+            'beneficiaryAddressLine2': beneficiary_address_2
         }
         
-        if beneficiary_address_1:
-            params['beneficiaryAddressLine1'] = beneficiary_address_1
-            
-        if beneficiary_address_2:
-            params['beneficiaryAddressLine2'] = beneficiary_address_2
-            
-        # Logovanie pre debug
-        print(f"Volám externé API: {api_url} s param: {params}")
-        
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Referer': 'https://fakturask.sk/'
-        }
-            
-        response = requests.get(api_url, params=params, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            # API vracia priamo PNG
-            png_bytes = response.content
-            b64_string = base64.b64encode(png_bytes).decode('ascii')
-            print("✓ QR kód vygenerovaný pomocou freebysquare.sk API")
-            return f"data:image/png;base64,{b64_string}"
-        
-        print(f"Externé API zlyhalo: {response.status_code}")
-        # V prípade chyby skúsime fallback na POST v2
+        print(f"Volám externé API v2 (Primary) pre IBAN: {iban[:4]}...")
         return _generate_qr_code_external_v2(params)
         
     except Exception as e:
-        print(f"Chyba pri generovaní QR cez API v1: {e}")
+        print(f"Chyba pri príprave API v2: {e}")
         return None
 
 def _generate_qr_code_external_v2(params: dict) -> Optional[str]:
