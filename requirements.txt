@@ -31,3 +31,4 @@ sentry-sdk[flask]>=1.40.0,<2.0.0
 
 # PDF Generation (Pure Python, no system deps)
 fpdf2>=2.7.0
+beautifulsoup4>=4.12.0

@@ -783,6 +783,7 @@ def _get_invoice_pdf_data(invoice):
         import glob
         import unicodedata
         import re
+        from bs4 import BeautifulSoup
         
         class MyFPDF(FPDF, HTMLMixin):
             pass
@@ -792,14 +793,7 @@ def _get_invoice_pdf_data(invoice):
         
         # 1. Pokúsime sa nájsť Unicode font pre slovenské znaky
         font_found = False
-        possible_font_dirs = [
-            "/usr/share/fonts",
-            "/usr/local/share/fonts",
-            "/nix/store",
-            "static/fonts"
-        ]
-        
-        # Hľadáme DejaVuSans.ttf
+        possible_font_dirs = ["/usr/share/fonts", "/usr/local/share/fonts", "/nix/store", "static/fonts"]
         dejavu_paths = []
         for d in possible_font_dirs:
             if os.path.exists(d):
@@ -811,45 +805,43 @@ def _get_invoice_pdf_data(invoice):
                 pdf.add_font("DejaVu", "", font_path)
                 pdf.set_font("DejaVu", "", 10)
                 font_found = True
-                app.logger.info(f"Using Unicode font: {font_path}")
-            except Exception as fe:
-                app.logger.error(f"Failed to load found font {font_path}: {fe}")
+            except Exception: pass
         
-        # 2. Ak font nemáme, musíme OSTRÁNIŤ diakritiku, inak fpdf2 spadne na helvetice
         if not font_found:
             pdf.set_font("helvetica", size=10)
-            app.logger.warning("Unicode font not found, forcing ASCII conversion for Helvetica.")
-            # Drastické odstránenie všetkého mimo ASCII (mäkčene, dĺžne)
+            # Odstránime diakritiku len ak nemáme font
             html = unicodedata.normalize('NFKD', html).encode('ascii', 'ignore').decode('ascii')
         
-        # 3. Vyčistíme HTML pre fpdf2 (nepodporuje zložité CSS a vnorené bloky v tabuľkách)
-        # fpdf2-html padá na: Unsupported nested HTML tags inside <td> element: <div>
+        # 2. DEFINITÍVNE ČISTENIE HTML pomocou BeautifulSoup
+        soup = BeautifulSoup(html, 'html.parser')
         
-        # Najprv odstránime štýly a linky
-        clean_html = re.sub(r'<style>.*?</style>', '', html, flags=re.DOTALL)
-        clean_html = re.sub(r'<link.*?>', '', clean_html)
-        
-        # Nahradíme <div> za <p> alebo <span> podľa kontextu, 
-        # ale najbezpečnejšie pre fpdf2 je premeniť VŠETKY divy na p/br/span
-        # fpdf2-html nemá rád <div> a už vôbec nie vnorené v <td>
-        clean_html = clean_html.replace('<div>', '<p>').replace('</div>', '</p>')
-        
-        # fpdf2-html padá na AKÉKOĽVEK vnorené značky v <td> (p, div, span, b, i...)
-        # Toto je definitívne "nukleárne" riešenie: vnútri <td> a <th> necháme len čistý text a <br>
-        def clean_table_cells(match):
-            tag_name = match.group(1) # td alebo th
-            tag_attrs = match.group(2) # atribúty (štýly atď.)
-            content = match.group(3) # vnútro bunky
+        # Odstránime nebezpečné sekcie
+        for s in soup(["style", "script", "link"]):
+            s.decompose()
             
-            # Odstránime VŠETKY značky okrem <br>
-            # (?!br) je lookahead, ktorý povie "všetko okrem br"
-            clean_content = re.sub(r'<(?!br\s*/?>)[^>]+>', '', content)
-            return f'<{tag_name}{tag_attrs}>{clean_content}</{tag_name}>'
+        # Vyčistíme všetky bunky tabuliek (fpdf2-html nezvláda vnorené tagy v TD/TH)
+        for cell in soup.find_all(['td', 'th']):
+            cell_text = cell.get_text(separator=' ').strip()
+            cell.clear()
+            cell.string = cell_text
+            
+        # Premeníme divy na p
+        for div in soup.find_all('div'):
+            p_tag = soup.new_tag("p")
+            p_tag.string = div.get_text(separator=' ')
+            div.replace_with(p_tag)
+            
+        clean_html = str(soup)
         
-        clean_html = re.sub(r'<(td|th)([^>]*)>(.*?)</\1>', clean_table_cells, clean_html, flags=re.DOTALL)
-        
-        # fpdf2-html vyžaduje veľmi jednoduché značky
-        pdf.write_html(clean_html)
+        try:
+            pdf.write_html(clean_html)
+        except Exception as e:
+            # Posledná záchrana: čistý text
+            app.logger.error(f"fpdf2 write_html failed: {e}")
+            pdf = MyFPDF()
+            pdf.add_page()
+            pdf.set_font("helvetica", size=10)
+            pdf.write(5, soup.get_text())
         
         pdf_output = pdf.output()
         return bytes(pdf_output), "application/pdf", True
@@ -859,6 +851,9 @@ def _get_invoice_pdf_data(invoice):
         import traceback
         trace_msg = traceback.format_exc()
         app.logger.error(f"fpdf2 generation failed: {error_msg}\n{trace_msg}")
+        
+    # Ak všetko zlyhá, vrátime HTML a chybovú správu
+    return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
         
     # Ak všetko zlyhá, vrátime HTML a chybovú správu
     return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
