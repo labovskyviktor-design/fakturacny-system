@@ -776,6 +776,31 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
+    # Dynamické nastavenie ciest pre knižnice (Railway/Nix workaround)
+    try:
+        import os
+        import subprocess
+        
+        # Ak sme na linuxe a nevidíme knižnice, skúsime ich nájsť
+        if os.name != 'nt' and not os.environ.get('WEASYPRINT_PREPARED'):
+            app.logger.info("Searching for shared libraries for WeasyPrint...")
+            try:
+                # Nájdeme cestu k libgobject
+                find_cmd = ['find', '/nix/store', '-name', 'libgobject-2.0.so.0', '-type', 'f', '-print', '-quit']
+                lib_path = subprocess.run(find_cmd, capture_output=True, text=True, timeout=10).stdout.strip()
+                
+                if lib_path:
+                    lib_dir = os.path.dirname(lib_path)
+                    current_ld = os.environ.get('LD_LIBRARY_PATH', '')
+                    if lib_dir not in current_ld:
+                        os.environ['LD_LIBRARY_PATH'] = f"{lib_dir}:{current_ld}"
+                        app.logger.info(f"Added {lib_dir} to LD_LIBRARY_PATH")
+                
+                os.environ['WEASYPRINT_PREPARED'] = '1'
+            except Exception as fe:
+                app.logger.warning(f"Library sniffing failed: {fe}")
+    except: pass
+
     # Generovanie PDF cez WeasyPrint (čisto v Pythone, bez externých binárnych potrieb)
     try:
         from weasyprint import HTML
@@ -805,6 +830,18 @@ def debug_pdf_test():
         import ctypes.util
         import sys
         import os
+        import subprocess
+        
+        # Sniffing pred importom WeasyPrint
+        if os.name != 'nt':
+            try:
+                find_cmd = ['find', '/nix/store', '-name', 'libgobject-2.0.so.0', '-type', 'f', '-print', '-quit']
+                lib_path = subprocess.run(find_cmd, capture_output=True, text=True, timeout=5).stdout.strip()
+                if lib_path:
+                    lib_dir = os.path.dirname(lib_path)
+                    os.environ['LD_LIBRARY_PATH'] = f"{lib_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+            except: pass
+
         from weasyprint import HTML
         
         # Dialgnostika knižníc
