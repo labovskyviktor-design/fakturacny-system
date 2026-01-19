@@ -813,15 +813,17 @@ def _get_invoice_pdf_data(invoice):
         
         options = {
             'page-size': 'A4',
-            'margin-top': '0.75in',
-            'margin-right': '0.75in',
-            'margin-bottom': '0.75in',
-            'margin-left': '0.75in',
+            'margin-top': '0.6in',
+            'margin-right': '0.6in',
+            'margin-bottom': '0.6in',
+            'margin-left': '0.6in',
             'encoding': "UTF-8",
             'no-outline': None,
             'quiet': '',
             'enable-local-file-access': None,
-            'disable-smart-shrinking': None
+            'disable-smart-shrinking': None,
+            'zoom': '1.0',
+            'dpi': '96'
         }
         
         # Generujeme PDF

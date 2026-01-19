@@ -13,75 +13,72 @@
 
         @page {
             size: A4;
-            margin: 1cm;
+            margin: 1.5cm;
         }
 
         body {
             font-family: 'DejaVu Sans', Arial, sans-serif;
-            font-size: 9.5pt;
-            color: #333;
-            line-height: 1.3;
+            font-size: 10pt;
+            color: #1e293b;
+            line-height: 1.4;
+            background: #fff;
         }
 
         .container {
             width: 100%;
-            margin: 0;
-            padding: 0;
+        }
+
+        /* Helper for layouts without Flexbox */
+        .layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .layout-table td {
+            vertical-align: top;
         }
 
         /* Hlavička */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
+        .header-section {
             border-bottom: 2px solid #1e40af;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
         }
 
         .invoice-title {
-            font-size: 28pt;
+            font-size: 26pt;
             font-weight: bold;
             color: #1e40af;
-            letter-spacing: -1px;
+            letter-spacing: -0.5px;
         }
 
-        .invoice-number {
+        .invoice-number-label {
             font-size: 12pt;
-            color: #666;
+            color: #64748b;
             margin-top: 5px;
         }
 
-        .company-info {
+        .supplier-brief {
             text-align: right;
+            font-size: 9pt;
+            color: #475569;
         }
 
-        .company-name {
-            font-size: 14pt;
-            font-weight: bold;
-            color: #333;
+        .supplier-brief b {
+            font-size: 12pt;
+            color: #1e293b;
+            display: block;
+            margin-bottom: 3px;
         }
 
         /* Strany */
-        .parties {
-            display: table;
-            width: 100%;
-            margin-bottom: 15px;
-        }
-
-        .party {
-            display: table-cell;
-            width: 48%;
-            vertical-align: top;
-            padding: 15px;
+        .party-box {
             background: #f8fafc;
-            border-radius: 5px;
-            position: relative;
-        }
-
-
-        .party:first-child {
-            margin-right: 4%;
+            border-radius: 8px;
+            padding: 15px;
+            height: 100%;
+            border: 1px solid #e2e8f0;
         }
 
         .party-label {
@@ -96,334 +93,175 @@
         .party-name {
             font-size: 12pt;
             font-weight: bold;
-            color: #1e293b;
-            margin-bottom: 5px;
+            color: #1e40af;
+            margin-bottom: 8px;
         }
 
         .party-detail {
-            font-size: 9pt;
-            color: #475569;
+            font-size: 9.5pt;
+            color: #334155;
             line-height: 1.5;
         }
 
         /* Info grid */
-        .info-grid {
-            display: table;
+        .info-table {
             width: 100%;
-            margin-bottom: 15px;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
         }
 
-        .info-row {
-            display: table-row;
-        }
-
-        .info-cell {
-            display: table-cell;
-            padding: 5px 12px;
-            border-bottom: 1px solid #e2e8f0;
+        .info-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #f1f5f9;
         }
 
         .info-label {
             font-size: 9pt;
             color: #64748b;
-            width: 140px;
+            width: 150px;
         }
 
         .info-value {
             font-weight: bold;
             color: #1e293b;
+            font-size: 10pt;
         }
 
         /* Tabuľka položiek */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
 
-        .items-table thead th {
+        .items-table th {
             background: #1e40af;
             color: white;
-            font-size: 7.5pt;
+            font-size: 8.5pt;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            padding: 8px 10px;
+            padding: 12px 10px;
             text-align: left;
         }
 
-        .items-table thead th:last-child,
-        .items-table thead th:nth-child(4),
-        .items-table thead th:nth-child(2) {
-            text-align: right;
-        }
-
-        .items-table tbody td {
-            padding: 8px 10px;
+        .items-table td {
+            padding: 12px 10px;
             border-bottom: 1px solid #e2e8f0;
-            font-size: 8.5pt;
+            font-size: 9.5pt;
             vertical-align: top;
         }
 
-        /* Popis položky s dlhým textom */
-        .item-name {
-            font-weight: 600;
-            color: #1e293b;
+        .item-description {
+            font-weight: bold;
+            color: #0f172a;
         }
 
         .item-note {
-            font-size: 8pt;
+            font-size: 8.5pt;
             color: #64748b;
             margin-top: 4px;
-            line-height: 1.4;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            max-width: 350px;
+            font-weight: normal;
         }
 
-        .items-table tbody td:last-child,
-        .items-table tbody td:nth-child(4),
-        .items-table tbody td:nth-child(2) {
+        .text-right {
             text-align: right;
-        }
-
-        .items-table tbody tr:nth-child(even) {
-            background: #f8fafc;
         }
 
         /* Súčty */
-        .totals {
-            width: 280px;
+        .totals-section {
             margin-left: auto;
-            margin-bottom: 15px;
+            width: 320px;
+            margin-bottom: 30px;
         }
 
-        .totals-row {
-            display: table;
+        .totals-table {
             width: 100%;
+            border-collapse: collapse;
         }
 
-        .totals-label,
-        .totals-value {
-            display: table-cell;
-            padding: 8px 0;
-        }
-
-        .totals-label {
-            text-align: left;
-            color: #64748b;
-            font-size: 9pt;
-        }
-
-        .totals-value {
-            text-align: right;
-            font-weight: bold;
-        }
-
-        .totals-final {
-            border-top: 2px solid #1e40af;
-            margin-top: 5px;
-            padding-top: 10px;
-        }
-
-        .totals-final .totals-label,
-        .totals-final .totals-value {
-            font-size: 14pt;
-            color: #1e40af;
-        }
-
-        /* Suma slovom */
-        .amount-words {
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            border-radius: 5px;
-            padding: 8px 12px;
-            margin-bottom: 15px;
-            font-size: 8.5pt;
-        }
-
-        .amount-words-label {
-            font-weight: bold;
-            color: #1e40af;
-        }
-
-        /* Bankové údaje a QR */
-        .payment-section {
-            display: table;
-            width: 100%;
-            margin-bottom: 15px;
-        }
-
-        .bank-info {
-            display: table-cell;
-            width: 60%;
-            vertical-align: top;
-            padding-right: 20px;
-        }
-
-        .qr-section {
-            display: table-cell;
-            width: 40%;
-            text-align: center;
-            vertical-align: top;
-        }
-
-        .bank-title {
-            font-size: 8pt;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #64748b;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .bank-row {
-            display: table;
-            width: 100%;
-            margin-bottom: 5px;
-        }
-
-        .bank-label {
-            display: table-cell;
-            width: 120px;
-            font-size: 9pt;
-            color: #64748b;
-        }
-
-        .bank-value {
-            display: table-cell;
-            font-weight: bold;
+        .totals-table td {
+            padding: 6px 0;
             font-size: 10pt;
         }
 
-        .qr-code img {
-            width: 120px;
-            height: 120px;
-        }
-
-        .qr-label {
-            font-size: 8pt;
+        .totals-label {
             color: #64748b;
-            margin-top: 5px;
         }
 
-        /* Poznámka */
-        .note {
-            background: #f8fafc;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 30px;
-            font-size: 9pt;
-            color: #475569;
-        }
-
-        .note-label {
+        .total-final-row td {
+            border-top: 2px solid #1e40af;
+            padding-top: 15px;
+            font-size: 15pt;
             font-weight: bold;
-            color: #1e293b;
-            margin-bottom: 5px;
+            color: #1e40af;
+        }
+
+        /* Platba a QR */
+        .payment-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .qr-code-img {
+            width: 140px;
+            height: 140px;
         }
 
         /* Podpisy */
-        .signatures {
-            display: table;
+        .signature-table {
             width: 100%;
-            margin-top: 30px;
+            margin-top: 40px;
         }
 
-        .signature {
-            display: table-cell;
-            width: 45%;
+        .signature-cell {
             text-align: center;
-            position: relative;
-            vertical-align: bottom;
-        }
-
-        .signature-space {
-            min-height: 80px;
-            position: relative;
-            margin-bottom: 10px;
-        }
-
-        .signature-image {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .signature-image img {
-            max-width: 120px;
-            max-height: 60px;
-        }
-
-        .stamp-image {
-            position: absolute;
-            top: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .stamp-image img {
-            max-width: 100px;
-            max-height: 100px;
-            opacity: 0.85;
+            width: 50%;
+            padding: 0 20px;
         }
 
         .signature-line {
-            border-top: 1px solid #cbd5e1;
-            padding-top: 10px;
-            font-size: 9pt;
+            border-top: 1px solid #94a3b8;
+            margin-top: 10px;
+            padding-top: 5px;
+            font-size: 8.5pt;
             color: #64748b;
         }
 
-        /* Päta */
-        .footer {
-            margin-top: 30px;
-            padding-top: 15px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 8pt;
-            color: #94a3b8;
-            text-align: center;
+        .stamp-placeholder {
+            height: 100px;
+            position: relative;
         }
 
-            {
-            % if invoice.status=='cancelled' %
-        }
-
+        /* Watermarks */
         .watermark {
             position: fixed;
-            top: 50%;
+            top: 40%;
             left: 50%;
             transform: translate(-50%, -50%) rotate(-45deg);
-            font-size: 80pt;
-            color: rgba(220, 38, 38, 0.15);
+            font-size: 100pt;
+            color: rgba(220, 38, 38, 0.08);
             font-weight: bold;
-            pointer-events: none;
-            z-index: 1000;
-        }
-
-            {
-            % endif %
-        }
-
-            {
-            % if invoice.status=='paid' %
+            z-index: -1;
         }
 
         .paid-stamp {
             position: fixed;
-            top: 100px;
+            top: 150px;
             right: 50px;
-            border: 5px solid rgba(34, 197, 94, 0.5);
-            color: rgba(34, 197, 94, 0.7);
-            padding: 10px 20px;
-            font-size: 24pt;
+            border: 6px solid #22c55e;
+            color: #22c55e;
+            padding: 15px 30px;
+            font-size: 32pt;
             font-weight: bold;
             transform: rotate(-15deg);
-            border-radius: 10px;
-        }
-
-            {
-            % endif %
+            border-radius: 12px;
+            opacity: 0.7;
+            z-index: 10;
         }
     </style>
 </head>
@@ -439,202 +277,223 @@
 
     <div class="container">
         <!-- Hlavička -->
-        <table style="width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #1e40af;">
-            <tr>
-                <td style="vertical-align: top;">
-                    <b style="font-size: 28pt; color: #1e40af;">FAKTÚRA</b><br>
-                    <span style="font-size: 12pt; color: #666;">č. {{ invoice.invoice_number }}</span>
-                </td>
-                <td style="vertical-align: top; text-align: right;">
-                    <b style="font-size: 14pt; color: #333;">{{ invoice.supplier.name }}</b><br>
-                    <span style="font-size: 8.5pt; color: #666;">
+        <div class="header-section">
+            <table class="layout-table">
+                <tr>
+                    <td>
+                        <div class="invoice-title">FAKTÚRA</div>
+                        <div class="invoice-number-label">číslo {{ invoice.invoice_number }}</div>
+                    </td>
+                    <td class="supplier-brief">
+                        <b>{{ invoice.supplier.name }}</b>
                         {{ invoice.supplier.street }}<br>
-                        {{ invoice.supplier.zip_code }} {{ invoice.supplier.city }}
-                    </span>
+                        {{ invoice.supplier.zip_code }} {{ invoice.supplier.city }}, {{ invoice.supplier.country }}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Dodávateľ a Odberateľ -->
+        <table class="layout-table" style="margin-bottom: 25px;">
+            <tr>
+                <td style="padding-right: 15px; width: 50%;">
+                    <div class="party-box">
+                        <div class="party-label">Dodávateľ</div>
+                        <div class="party-name">{{ invoice.supplier.name }}</div>
+                        <div class="party-detail">
+                            {{ invoice.supplier.street }}<br>
+                            {{ invoice.supplier.zip_code }} {{ invoice.supplier.city }}<br>
+                            {{ invoice.supplier.country }}<br>
+                            <br>
+                            {% if invoice.supplier.ico %}<b>IČO:</b> {{ invoice.supplier.ico }}<br>{% endif %}
+                            {% if invoice.supplier.dic %}<b>DIČ:</b> {{ invoice.supplier.dic }}<br>{% endif %}
+                            {% if invoice.supplier.ic_dph %}<b>IČ DPH:</b> {{ invoice.supplier.ic_dph }}<br>{% endif %}
+                            {% if invoice.supplier.email %}<br>{{ invoice.supplier.email }}{% endif %}
+                            {% if invoice.supplier.phone %}<br>{{ invoice.supplier.phone }}{% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td style="padding-left: 15px; width: 50%;">
+                    <div class="party-box">
+                        <div class="party-label">Odberateľ</div>
+                        <div class="party-name">{{ invoice.client.name }}</div>
+                        <div class="party-detail">
+                            {% if invoice.client.contact_person %}<b>{{ invoice.client.contact_person }}</b><br>{% endif
+                            %}
+                            {{ invoice.client.street }}<br>
+                            {{ invoice.client.zip_code }} {{ invoice.client.city }}<br>
+                            {{ invoice.client.country }}<br>
+                            <br>
+                            {% if invoice.client.ico %}<b>IČO:</b> {{ invoice.client.ico }}<br>{% endif %}
+                            {% if invoice.client.dic %}<b>DIČ:</b> {{ invoice.client.dic }}<br>{% endif %}
+                            {% if invoice.client.ic_dph %}<b>IČ DPH:</b> {{ invoice.client.ic_dph }}{% endif %}
+                        </div>
+                    </div>
                 </td>
             </tr>
         </table>
 
-        <!-- Dodávateľ a odberateľ -->
-        <div class="parties">
-            <div class="party">
-                <div class="party-label">Dodávateľ</div>
-                <div class="party-name">{{ invoice.supplier.name }}</div>
-                <div class="party-detail">
-                    {{ invoice.supplier.street }}<br>
-                    {{ invoice.supplier.zip_code }} {{ invoice.supplier.city }}<br>
-                    {{ invoice.supplier.country }}<br>
-                    <br>
-                    {% if invoice.supplier.ico %}IČO: {{ invoice.supplier.ico }}<br>{% endif %}
-                    {% if invoice.supplier.dic %}DIČ: {{ invoice.supplier.dic }}<br>{% endif %}
-                    {% if invoice.supplier.ic_dph %}IČ DPH: {{ invoice.supplier.ic_dph }}<br>{% endif %}
-                    {% if invoice.supplier.email %}<br>{{ invoice.supplier.email }}{% endif %}
-                    {% if invoice.supplier.phone %}<br>{{ invoice.supplier.phone }}{% endif %}
-                </div>
-            </div>
-            <div class="party" style="margin-left: 4%;">
-                <div class="party-label">Odberateľ</div>
-                <div class="party-name">{{ invoice.client.name }}</div>
-                <div class="party-detail">
-                    {% if invoice.client.contact_person %}{{ invoice.client.contact_person }}<br>{% endif %}
-                    {{ invoice.client.street }}<br>
-                    {{ invoice.client.zip_code }} {{ invoice.client.city }}<br>
-                    {{ invoice.client.country }}<br>
-                    <br>
-                    {% if invoice.client.ico %}IČO: {{ invoice.client.ico }}<br>{% endif %}
-                    {% if invoice.client.dic %}DIČ: {{ invoice.client.dic }}<br>{% endif %}
-                    {% if invoice.client.ic_dph %}IČ DPH: {{ invoice.client.ic_dph }}{% endif %}
-                </div>
-            </div>
-        </div>
+        <!-- Údaje o platbe -->
+        <table class="info-table">
+            <tr>
+                <td class="info-label">Variabilný symbol:</td>
+                <td class="info-value">{{ invoice.variable_symbol }}</td>
+                <td class="info-label">Dátum vystavenia:</td>
+                <td class="info-value">{{ format_date_sk(invoice.issue_date) }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">Forma úhrady:</td>
+                <td class="info-value">{{ get_payment_method_label(invoice.payment_method) }}</td>
+                <td class="info-label">Dátum dodania:</td>
+                <td class="info-value">{{ format_date_sk(invoice.delivery_date) }}</td>
+            </tr>
+            <tr>
+                <td class="info-label">Mena:</td>
+                <td class="info-value">EUR (€)</td>
+                <td class="info-label" style="color: #dc2626; font-weight: bold;">Dátum splatnosti:</td>
+                <td class="info-value" style="color: #dc2626;">{{ format_date_sk(invoice.due_date) }}</td>
+            </tr>
+        </table>
 
-        <!-- Údaje faktúry -->
-        <div class="info-grid">
-            <div class="info-row">
-                <div class="info-cell info-label">Číslo faktúry:</div>
-                <div class="info-cell info-value">{{ invoice.invoice_number }}</div>
-                <div class="info-cell info-label">Variabilný symbol:</div>
-                <div class="info-cell info-value">{{ invoice.variable_symbol }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-cell info-label">Dátum vystavenia:</div>
-                <div class="info-cell info-value">{{ format_date_sk(invoice.issue_date) }}</div>
-                <div class="info-cell info-label">Dátum dodania:</div>
-                <div class="info-cell info-value">{{ format_date_sk(invoice.delivery_date) }}</div>
-            </div>
-            <div class="info-row">
-                <div class="info-cell info-label">Dátum splatnosti:</div>
-                <div class="info-cell info-value" style="color: #dc2626;">{{ format_date_sk(invoice.due_date) }}</div>
-                <div class="info-cell info-label">Forma úhrady:</div>
-                <div class="info-cell info-value">{{ get_payment_method_label(invoice.payment_method) }}</div>
-            </div>
-        </div>
-
-        <!-- Položky faktúry -->
+        <!-- Položky -->
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 50%;">Popis</th>
-                    <th style="width: 10%;">Množstvo</th>
-                    <th style="width: 10%;">Jednotka</th>
-                    <th style="width: 15%;">Cena/j.</th>
-                    <th style="width: 15%;">Celkom</th>
+                    <th style="width: 45%;">Popis položky</th>
+                    <th style="width: 10%;" class="text-right">Množ.</th>
+                    <th style="width: 10%;">Jedn.</th>
+                    <th style="width: 15%;" class="text-right">Cena/j.</th>
+                    <th style="width: 20%;" class="text-right">Suma celkom</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in invoice.items %}
                 <tr>
                     <td>
-                        <b class="item-name">{{ item.description }}</b>
-                        {% if item.item_note %}<br>
-                        <span class="item-note">{{ item.item_note }}</span>
-                        {% endif %}
+                        <div class="item-description">{{ item.description }}</div>
+                        {% if item.item_note %}<div class="item-note">{{ item.item_note }}</div>{% endif %}
                     </td>
-                    <td>{{ item.quantity }}</td>
+                    <td class="text-right">{{ item.quantity }}</td>
                     <td>{{ item.unit }}</td>
-                    <td>{{ format_currency(item.unit_price) }} €</td>
-                    <td>{{ format_currency(item.total) }} €</td>
+                    <td class="text-right">{{ format_currency(item.unit_price) }} €</td>
+                    <td class="text-right">{{ format_currency(item.total) }} €</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <!-- Súčty -->
-        <div class="totals">
-            <div class="totals-row">
-                <div class="totals-label">Medzisúčet:</div>
-                <div class="totals-value">{{ format_currency(invoice.subtotal) }} €</div>
-            </div>
-            {% if invoice.vat_rate > 0 %}
-            <div class="totals-row">
-                <div class="totals-label">DPH ({{ invoice.vat_rate|int }}%):</div>
-                <div class="totals-value">{{ format_currency(invoice.vat_amount) }} €</div>
-            </div>
-            {% endif %}
-            <div class="totals-row totals-final">
-                <div class="totals-label">Celkom k úhrade:</div>
-                <div class="totals-value">{{ format_currency(invoice.total) }} €</div>
-            </div>
+        <!-- Sumár cien -->
+        <div class="totals-section">
+            <table class="totals-table">
+                <tr>
+                    <td class="totals-label">Základ pre DPH:</td>
+                    <td class="text-right">{{ format_currency(invoice.subtotal) }} €</td>
+                </tr>
+                {% if invoice.vat_rate > 0 %}
+                <tr>
+                    <td class="totals-label">DPH ({{ invoice.vat_rate|int }}%):</td>
+                    <td class="text-right">{{ format_currency(invoice.vat_amount) }} €</td>
+                </tr>
+                {% endif %}
+                <tr class="total-final-row">
+                    <td>Celkom k úhrade:</td>
+                    <td class="text-right">{{ format_currency(invoice.total) }} €</td>
+                </tr>
+            </table>
         </div>
 
-        <!-- Suma slovom -->
-        <div class="amount-words">
-            <span class="amount-words-label">Suma slovom:</span> {{ suma_slovom(invoice.total) }}
+        <div style="font-size: 9pt; color: #475569; margin-bottom: 25px;">
+            <b>Suma slovom:</b> {{ suma_slovom(invoice.total) }}
         </div>
 
-        <!-- Bankové údaje a QR kód -->
+        <!-- Banka a QR -->
         {% if invoice.payment_method == 'prevod' and invoice.supplier.iban %}
-        <div class="payment-section">
-            <div class="bank-info">
-                <div class="bank-title">Bankové spojenie</div>
-                {% if invoice.supplier.bank_name %}
-                <div class="bank-row">
-                    <div class="bank-label">Banka:</div>
-                    <div class="bank-value">{{ invoice.supplier.bank_name }}</div>
-                </div>
-                {% endif %}
-                <div class="bank-row">
-                    <div class="bank-label">IBAN:</div>
-                    <div class="bank-value">{{ invoice.supplier.iban }}</div>
-                </div>
-                {% if invoice.supplier.swift %}
-                <div class="bank-row">
-                    <div class="bank-label">SWIFT/BIC:</div>
-                    <div class="bank-value">{{ invoice.supplier.swift }}</div>
-                </div>
-                {% endif %}
-                <div class="bank-row">
-                    <div class="bank-label">Variabilný symbol:</div>
-                    <div class="bank-value">{{ invoice.variable_symbol }}</div>
-                </div>
-            </div>
-            {% if qr_code %}
-            <div class="qr-section">
-                <div class="bank-title">PAY by square</div>
-                <div class="qr-code">
-                    <img src="{{ qr_code }}" alt="QR kód">
-                </div>
-                <div class="qr-label">Naskenujte pre platbu</div>
-            </div>
-            {% endif %}
+        <div class="payment-box">
+            <table class="layout-table">
+                <tr>
+                    <td style="width: 65%;">
+                        <div
+                            style="font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: bold; margin-bottom: 15px;">
+                            Bankové spojenie
+                        </div>
+                        <table class="layout-table">
+                            {% if invoice.supplier.bank_name %}
+                            <tr>
+                                <td style="width: 100px; font-size: 9pt; color: #64748b; padding-bottom: 5px;">Banka:
+                                </td>
+                                <td style="font-weight: bold; padding-bottom: 5px;">{{ invoice.supplier.bank_name }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td style="width: 100px; font-size: 9pt; color: #64748b; padding-bottom: 5px;">IBAN:
+                                </td>
+                                <td style="font-weight: bold; font-size: 11pt; padding-bottom: 5px; color: #1e40af;">{{
+                                    invoice.supplier.iban }}</td>
+                            </tr>
+                            {% if invoice.supplier.swift %}
+                            <tr>
+                                <td style="width: 100px; font-size: 9pt; color: #64748b; padding-bottom: 5px;">
+                                    SWIFT/BIC:</td>
+                                <td style="font-weight: bold; padding-bottom: 5px;">{{ invoice.supplier.swift }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </td>
+                    {% if qr_code %}
+                    <td style="width: 35%; text-align: center;">
+                        <div
+                            style="font-size: 8pt; text-transform: uppercase; font-weight: bold; color: #64748b; margin-bottom: 5px;">
+                            PAY by square</div>
+                        <img src="{{ qr_code }}" class="qr-code-img" alt="QR Platba">
+                    </td>
+                    {% endif %}
+                </tr>
+            </table>
         </div>
         {% endif %}
 
         {% if invoice.note %}
-        <div class="note">
-            <div class="note-label">Poznámka:</div>
+        <div style="background: #f1f5f9; padding: 15px; border-radius: 6px; font-size: 9pt; margin-bottom: 30px;">
+            <b style="display: block; margin-bottom: 5px;">Poznámka:</b>
             {{ invoice.note }}
         </div>
         {% endif %}
 
         <!-- Podpisy -->
-        <div class="signatures">
-            <div class="signature">
-                <div class="signature-space"></div>
-                <div class="signature-line">Vystavil</div>
-            </div>
-            <div class="signature">
-                <div class="signature-space">
-                    {% if invoice.supplier.stamp_image %}
-                    <div class="stamp-image">
-                        <img src="{{ invoice.supplier.stamp_image }}" alt="Pečiatka">
+        <table class="signature-table">
+            <tr>
+                <td class="signature-cell">
+                    <div class="stamp-placeholder"></div>
+                    <div class="signature-line">Vystavil</div>
+                </td>
+                <td class="signature-cell">
+                    <div class="stamp-placeholder">
+                        {% if invoice.supplier.stamp_image %}
+                        <img src="{{ invoice.supplier.stamp_image }}" style="max-height: 90px; max-width: 180px;"
+                            alt="Pečiatka">
+                        {% endif %}
+                        {% if invoice.supplier.signature_image %}
+                        <img src="{{ invoice.supplier.signature_image }}"
+                            style="max-height: 60px; max-width: 150px; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);"
+                            alt="Podpis">
+                        {% endif %}
                     </div>
-                    {% endif %}
-                    {% if invoice.supplier.signature_image %}
-                    <div class="signature-image">
-                        <img src="{{ invoice.supplier.signature_image }}" alt="Podpis">
-                    </div>
-                    {% endif %}
-                </div>
-                <div class="signature-line">Pečiatka a podpis</div>
-            </div>
-        </div>
+                    <div class="signature-line">Pečiatka a podpis</div>
+                </td>
+            </tr>
+        </table>
 
         <!-- Päta -->
-        <div class="footer">
+        <div
+            style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 8pt; color: #94a3b8;">
             {% if not invoice.supplier.is_vat_payer %}
             Nie sme platcami DPH podľa §4 zákona č. 222/2004 Z.z. o DPH.
+            {% else %}
+            Platca DPH.
             {% endif %}
+            <br>
+            Generované systémom FakturaSK
         </div>
     </div>
 </body>
