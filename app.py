@@ -776,17 +776,40 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # --- DEFINITÍVNE RIEŠENIE: NIX-NATIVE WEASYPRINT ---
+    # --- ENHANCED PDF GENERATION WITH DIAGNOSTICS ---
+    app.logger.info("=" * 60)
+    app.logger.info(f"Starting PDF generation for invoice {invoice.invoice_number}")
+    
+    # Pre-flight diagnostics
     try:
-        from weasyprint import HTML, CSS
+        from utils.pdf_diagnostics import verify_pdf_environment
+        success, diagnostics = verify_pdf_environment()
+        
+        if not success:
+            app.logger.warning("PDF environment check failed!")
+            for error in diagnostics.get('errors', []):
+                app.logger.error(f"  - {error}")
+        else:
+            app.logger.info("PDF environment check passed ✓")
+            
+    except Exception as diag_error:
+        app.logger.warning(f"Could not run diagnostics: {diag_error}")
+    
+    # Attempt PDF generation
+    try:
+        from weasyprint import HTML
         import io
         
-        app.logger.info("Generating PDF using WeasyPrint (Nix-Native)")
+        app.logger.info("WeasyPrint imported successfully")
+        app.logger.info(f"Base URL: {os.path.dirname(os.path.realpath(__file__))}")
         
-        # Generujeme PDF z HTML stringu
-        # Pridávame základné CSS pre A4 portrait ak by chýbalo v šablóne
+        # Log environment for debugging
+        app.logger.info(f"LD_LIBRARY_PATH: {os.environ.get('LD_LIBRARY_PATH', 'NOT SET')}")
+        app.logger.info(f"FONTCONFIG_FILE: {os.environ.get('FONTCONFIG_FILE', 'NOT SET')}")
+        
         base_url = os.path.dirname(os.path.realpath(__file__))
         
+        app.logger.info("Creating PDF from HTML...")
         pdf_file = io.BytesIO()
         HTML(string=html, base_url=base_url).write_pdf(
             target=pdf_file,
@@ -794,12 +817,37 @@ def _get_invoice_pdf_data(invoice):
         )
         
         pdf_data = pdf_file.getvalue()
+        pdf_size = len(pdf_data)
+        
+        app.logger.info(f"✓ PDF generated successfully! Size: {pdf_size} bytes")
+        app.logger.info("=" * 60)
+        
         return pdf_data, "application/pdf", True
                 
+    except ImportError as e:
+        error_msg = f"WeasyPrint import failed: {str(e)}"
+        app.logger.error(f"IMPORT ERROR: {error_msg}")
+        app.logger.error("This usually means WeasyPrint is not installed or system libraries are missing")
+        app.logger.error(traceback.format_exc())
+        app.logger.info("=" * 60)
+        return html.encode('utf-8'), "text/html", error_msg
+        
     except Exception as e:
-        app.logger.error(f"WEASYPRINT FAILURE: {str(e)}")
-        # Vrátime HTML s chybou v tele
-        error_msg = f"ERROR: PDF generation failed: {str(e)}"
+        error_msg = f"PDF generation failed: {str(e)}"
+        app.logger.error(f"WEASYPRINT FAILURE: {error_msg}")
+        app.logger.error("Full traceback:")
+        app.logger.error(traceback.format_exc())
+        
+        # Try to provide more specific error information
+        error_type = type(e).__name__
+        if 'cairo' in str(e).lower():
+            app.logger.error("→ This appears to be a Cairo library issue")
+        elif 'pango' in str(e).lower():
+            app.logger.error("→ This appears to be a Pango library issue")
+        elif 'font' in str(e).lower():
+            app.logger.error("→ This appears to be a font-related issue")
+        
+        app.logger.info("=" * 60)
         return html.encode('utf-8'), "text/html", error_msg
 
 @app.route('/debug/pdf-test')
@@ -810,30 +858,75 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        from weasyprint import HTML
-        import io
+        import ctypes
+        from ctypes.util import find_library
+        import os
         
-        html_content = f"""
+        # Monitorujeme načítanie knižníc
+        libs_to_check = ['cairo', 'pango-1.0', 'gobject-2.0', 'gdk_pixbuf-2.0', 'ffi']
+        lib_status = {}
+        for lib in libs_to_check:
+            try:
+                found = find_library(lib)
+                if found:
+                    ptr = ctypes.CDLL(found)
+                    lib_status[lib] = f"FOUND and LOADED ({found})"
+                else:
+                    lib_status[lib] = "NOT FOUND ❌"
+            except Exception as le:
+                lib_status[lib] = f"LOAD ERROR: {str(le)} ❌"
+
+        # Kontrola súborov v Nix profile
+        nix_lib_dir = "/nix/var/nix/profiles/default/lib"
+        nix_files = []
+        if os.path.exists(nix_lib_dir):
+            nix_files = [f for f in os.listdir(nix_lib_dir) if '.so' in f][:10] # Len prvých 10 pre prehľad
+
+        diag_html = f"""
         <html>
-            <body style="font-family: sans-serif; padding: 40px;">
-                <h1 style="color: #1e40af;">WeasyPrint Status: SUCCESS ✅</h1>
-                <p><b>Engine:</b> Nix-Native WeasyPrint</p>
-                <p><b>Environment:</b> Authoritative Nix Linking</p>
-                <p>Ak toto vidíte ako PDF, motor WeasyPrint je správne prepojený s knižnicami.</p>
+            <body style="font-family: sans-serif; padding: 40px; line-height: 1.6;">
+                <h1 style="color: #1e40af;">WeasyPrint Deep Diagnostic 🛠️</h1>
+                <h2>Shared Libraries (ctypes):</h2>
+                <ul>
+                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in lib_status.items()])}
+                </ul>
+                <hr>
+                <h2>Nix Environment:</h2>
+                <ul>
+                    <li><b>LD_LIBRARY_PATH:</b> {os.environ.get('LD_LIBRARY_PATH')}</li>
+                    <li><b>Nix Lib Folder exists:</b> {os.path.exists(nix_lib_dir)}</li>
+                    <li><b>Files in Nix Lib (sample):</b> {", ".join(nix_files)}</li>
+                </ul>
+                <hr>
+                <form action="/test-direct-pdf" method="get">
+                    <button type="submit" style="padding: 10px 20px; background: #1e40af; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        Skúsiť generovať Test PDF
+                    </button>
+                </form>
             </body>
         </html>
         """
-        
-        pdf_file = io.BytesIO()
-        HTML(string=html_content).write_pdf(pdf_file)
-        
-        response = make_response(pdf_file.getvalue())
-        response.headers['Content-Type'] = 'application/pdf'
-        return response
+        return diag_html
 
     except Exception as e:
         import traceback
-        return f"<h1>WeasyPrint Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
+        return f"<h1>Diagnostic Failure</h1><pre>{traceback.format_exc()}</pre>", 500
+
+@app.route('/test-direct-pdf')
+@login_required
+def test_direct_pdf():
+    """Test direct PDF generation"""
+    try:
+        from weasyprint import HTML
+        import io
+        pdf_file = io.BytesIO()
+        HTML(string="<h1>SUCCESS: WeasyPrint is working!</h1>").write_pdf(pdf_file)
+        response = make_response(pdf_file.getvalue())
+        response.headers['Content-Type'] = 'application/pdf'
+        return response
+    except Exception as e:
+        import traceback
+        return f"<h1>Test PDF Failed</h1><pre>{traceback.format_exc()}</pre>", 500
 
     except Exception as e:
         import traceback
