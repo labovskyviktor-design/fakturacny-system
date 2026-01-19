@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "gdk-pixbuf", "libffi", "libxml2", "libxslt", "shared-mime-info", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
+nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "gdk-pixbuf", "libffi", "libxml2", "libxslt", "shared-mime-info", "glib", "gobject-introspection", "findutils"]
 
 [phases.build]
 cmds = [
@@ -8,6 +8,8 @@ cmds = [
 
 [variables]
 PYTHONPATH = ".:$PYTHONPATH"
+LD_LIBRARY_PATH = "/usr/lib:/usr/local/lib:/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
+GI_TYPELIB_PATH = "/usr/lib/girepository-1.0:/usr/local/lib/girepository-1.0:/nix/var/nix/profiles/default/lib/girepository-1.0"
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]

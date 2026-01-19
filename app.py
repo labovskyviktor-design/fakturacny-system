@@ -802,17 +802,29 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        from weasyprint import HTML
+        import ctypes.util
         import sys
+        import os
+        from weasyprint import HTML
+        
+        # Dialgnostika knižníc
+        libs = ['gobject-2.0', 'pango-1.0', 'cairo', 'gdk_pixbuf-2.0']
+        found_libs = {lib: ctypes.util.find_library(lib) for lib in libs}
+        
+        diag = {
+            "Python": sys.version,
+            "LD_LIBRARY_PATH": os.environ.get('LD_LIBRARY_PATH', 'NOT SET'),
+            "Found Libraries": found_libs,
+            "UID": os.getuid() if hasattr(os, 'getuid') else 'N/A'
+        }
         
         html_content = f"""
         <html>
             <head><meta charset="UTF-8"></head>
             <body>
-                <h1>WeasyPrint Diagnostics</h1>
-                <p>Python Verzia: {sys.version}</p>
+                <h1>WeasyPrint Diagnostics (v2)</h1>
+                <pre>{str(diag)}</pre>
                 <p>Ak toto vidíte ako PDF, WeasyPrint funguje perfektne!</p>
-                <p>Tento spôsob už nevyžaduje žiadne externé prehliadače (Chromium) ani binárky.</p>
             </body>
         </html>
         """
@@ -824,7 +836,12 @@ def debug_pdf_test():
 
     except Exception as e:
         import traceback
-        return f"<h1>WeasyPrint Failure</h1><p>Error: {str(e)}</p><pre>{traceback.format_exc()}</pre>", 500
+        diag_err = {
+            "Error": str(e),
+            "LD_LIBRARY_PATH": os.environ.get('LD_LIBRARY_PATH', 'NOT SET'),
+            "Path Contents /usr/lib": os.listdir('/usr/lib')[:10] if os.path.exists('/usr/lib') else 'N/A'
+        }
+        return f"<h1>WeasyPrint Failure</h1><pre>{str(diag_err)}</pre><hr><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
