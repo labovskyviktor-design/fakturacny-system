@@ -188,15 +188,15 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     c.roundRect(left_margin, y_position - box_height, box_width, box_height, 8, fill=1)
     
     c.setFillColor(text_gray)
-    c.setFont("Helvetica-Bold", 8)
+    c.setFont(font_bold, 8)
     c.drawString(left_margin + 15, y_position - 20, "DODÁVATEĽ")
     
     c.setFillColor(primary_blue)
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(font_bold, 12)
     c.drawString(left_margin + 15, y_position - 38, invoice.supplier.name)
     
     c.setFillColor(dark_text)
-    c.setFont("Helvetica", 9.5)
+    c.setFont(font_name, 9.5)
     y = y_position - 53
     c.drawString(left_margin + 15, y, invoice.supplier.street)
     y -= 13
@@ -206,14 +206,14 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     y -= 18
     
     if invoice.supplier.ico:
-        c.setFont("Helvetica-Bold", 9)
+        c.setFont(font_bold, 9)
         c.drawString(left_margin + 15, y, "IČO: ")
-        c.setFont("Helvetica", 9)
+        c.setFont(font_name, 9)
         c.drawString(left_margin + 40, y, invoice.supplier.ico)
         y -= 11
     
     if invoice.supplier.dic:
-        c.setFont("Helvetica-Bold", 9)
+        c.setFont(font_bold, 9)
         c.drawString(left_margin + 15, y, "DIČ: ")
         c.setFont("Helvetica", 9)
         c.drawString(left_margin + 40, y, invoice.supplier.dic)
@@ -222,7 +222,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     if invoice.supplier.ic_dph:
         c.setFont("Helvetica-Bold", 9)
         c.drawString(left_margin + 15, y, "IČ DPH: ")
-        c.setFont("Helvetica", 9)
+        c.setFont(font_name, 9)
         c.drawString(left_margin + 55, y, invoice.supplier.ic_dph)
     
     # Client box
@@ -232,15 +232,15 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     c.roundRect(client_x, y_position - box_height, box_width, box_height, 8, fill=1)
     
     c.setFillColor(text_gray)
-    c.setFont("Helvetica-Bold", 8)
+    c.setFont(font_bold, 8)
     c.drawString(client_x + 15, y_position - 20, "ODBERATEĽ")
     
     c.setFillColor(primary_blue)
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(font_bold, 12)
     c.drawString(client_x + 15, y_position - 38, invoice.client.name)
     
     c.setFillColor(dark_text)
-    c.setFont("Helvetica", 9.5)
+    c.setFont(font_name, 9.5)
     y = y_position - 53
     if invoice.client.contact_person:
         c.setFont("Helvetica-Bold", 9)
@@ -292,9 +292,9 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
         ('TEXTCOLOR', (2, 0), (2, -1), text_gray),
         ('TEXTCOLOR', (1, 0), (1, -1), dark_text),
         ('TEXTCOLOR', (3, 0), (3, -1), dark_text),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (3, 0), (3, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, -1), font_name),
+        ('FONTNAME', (1, 0), (1, -1), font_bold),
+        ('FONTNAME', (3, 0), (3, -1), font_bold),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('FONTSIZE', (1, 0), (1, -1), 10),
         ('FONTSIZE', (3, 0), (3, -1), 10),
@@ -332,14 +332,14 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
         # Header
         ('BACKGROUND', (0, 0), (-1, 0), primary_blue),
         ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), font_bold),
         ('FONTSIZE', (0, 0), (-1, 0), 8.5),
         ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
         ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
         ('ALIGN', (3, 0), (-1, 0), 'RIGHT'),
         
         # Data rows
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 1), (-1, -1), font_name),
         ('FONTSIZE', (0, 1), (-1, -1), 9.5),
         ('ALIGN', (1, 1), (1, -1), 'RIGHT'),
         ('ALIGN', (3, 1), (-1, -1), 'RIGHT'),
@@ -365,7 +365,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     # === TOTALS ===
     totals_x = right_margin - 320
     
-    c.setFont("Helvetica", 10)
+    c.setFont(font_name, 10)
     c.setFillColor(text_gray)
     c.drawString(totals_x, y_position, "Základ pre DPH:")
     c.setFillColor(dark_text)
@@ -387,7 +387,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     
     y_position -= 15
     
-    c.setFont("Helvetica-Bold", 15)
+    c.setFont(font_bold, 15)
     c.setFillColor(primary_blue)
     c.drawString(totals_x, y_position, "Celkom k úhrade:")
     c.drawRightString(right_margin, y_position, f"{invoice.total:.2f} €")
@@ -396,10 +396,10 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     
     # Suma slovom
     from utils import suma_slovom
-    c.setFont("Helvetica-Bold", 9)
+    c.setFont(font_bold, 9)
     c.setFillColor(text_gray)
     c.drawString(left_margin, y_position, "Suma slovom: ")
-    c.setFont("Helvetica", 9)
+    c.setFont(font_name, 9)
     c.setFillColor(dark_text)
     c.drawString(left_margin + 70, y_position, suma_slovom(invoice.total))
     
@@ -412,17 +412,17 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
         c.roundRect(left_margin, y_position - 80, right_margin - left_margin, 80, 8, fill=1)
         
         c.setFillColor(text_gray)
-        c.setFont("Helvetica-Bold", 8)
+        c.setFont(font_bold, 8)
         c.drawString(left_margin + 15, y_position - 20, "BANKOVÉ SPOJENIE")
         
         y = y_position - 40
-        c.setFont("Helvetica", 9)
+        c.setFont(font_name, 9)
         c.setFillColor(dark_text)
         
         if invoice.supplier.bank_name:
             c.setFont("Helvetica-Bold", 9)
             c.drawString(left_margin + 15, y, "Banka: ")
-            c.setFont("Helvetica", 9)
+            c.setFont(font_name, 9)
             c.drawString(left_margin + 60, y, invoice.supplier.bank_name)
             y -= 15
         
@@ -464,7 +464,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     c.setStrokeColor(border_gray)
     c.line(left_margin, y_position, right_margin, y_position)
     
-    c.setFont("Helvetica", 8)
+    c.setFont(font_name, 8)
     c.setFillColor(text_gray)
     footer_text = "Nie sme platcami DPH podľa §4 zákona č. 222/2004 Z.z. o DPH." if not invoice.supplier.is_vat_payer else "Platca DPH."
     c.drawCentredString(width / 2, y_position - 15, footer_text)
@@ -488,7 +488,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
         c.saveState()
         c.translate(width / 2, height / 2)
         c.rotate(45)
-        c.setFont("Helvetica-Bold", 100)
+        c.setFont(font_bold, 100)
         c.setFillColor(HexColor('#dc2626'))
         c.setFillAlpha(0.08)
         c.drawCentredString(0, 0, "STORNO")
@@ -504,7 +504,7 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
         c.roundRect(-60, -25, 120, 50, 12)
         c.setFillColor(HexColor('#22c55e'))
         c.setFillAlpha(0.7)
-        c.setFont("Helvetica-Bold", 32)
+        c.setFont(font_bold, 32)
         c.drawCentredString(0, -10, "UHRADENÉ")
         c.restoreState()
     
