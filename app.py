@@ -782,22 +782,33 @@ def _get_invoice_pdf_data(invoice):
         import shutil
         import os
         
-        # Konfigurácia pdfkit pre Railway
-        # Pokúsime sa nájsť wkhtmltopdf binárku
-        wkhtmltopdf_path = shutil.which('wkhtmltopdf')
+        # Konfigurácia pdfkit pre rôzne prostredia
+        # 1. Skúsime explicitne nastavenú cestu v environment variable
+        wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH')
         
-        # V Nix prostredí môže byť cesta špecifická
+        # 2. Ak nie je nastavená, skúsime ju nájsť v systéme
         if not wkhtmltopdf_path:
-            # Skúsime bežné Nix cesty ak which zlyhá
-            nix_paths = [
+            wkhtmltopdf_path = shutil.which('wkhtmltopdf')
+        
+        # 3. Ak stále nemáme (napr. na Railway/Nix), skúsime bežné cesty
+        if not wkhtmltopdf_path:
+            potential_paths = [
                 "/usr/bin/wkhtmltopdf",
-                "/usr/local/bin/wkhtmltopdf"
+                "/usr/local/bin/wkhtmltopdf",
+                "/opt/bin/wkhtmltopdf",
+                "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe",
+                "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
             ]
-            for p in nix_paths:
+            for p in potential_paths:
                 if os.path.exists(p):
                     wkhtmltopdf_path = p
                     break
-                    
+        
+        if wkhtmltopdf_path:
+            app.logger.info(f"Using wkhtmltopdf at: {wkhtmltopdf_path}")
+        else:
+            app.logger.warning("wkhtmltopdf executable not found in PATH or standard locations.")
+            
         config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
         
         options = {
@@ -835,17 +846,33 @@ def debug_pdf_test():
         
     try:
         import pdfkit
+        import shutil
+        import os
+        
+        # Discovery logic similar to _get_invoice_pdf_data
+        wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
+        if not wkhtmltopdf_path:
+            for p in ["/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf", 
+                      "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe", 
+                      "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"]:
+                if os.path.exists(p):
+                    wkhtmltopdf_path = p
+                    break
+        
+        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
+        
         html_content = """
         <html>
             <head><meta charset="UTF-8"></head>
             <body>
                 <h1 style="color: #1e40af;">PDFKit Test</h1>
                 <p>Ak toto vidíte s modrým nadpisom a správnou diakritikou (čšž), PDFKit na serveri funguje perfektne!</p>
+                <p>Cesta k binárke: <code>""" + str(wkhtmltopdf_path) + """</code></p>
             </body>
         </html>
         """
         options = {'encoding': "UTF-8", 'quiet': ''}
-        pdf_output = pdfkit.from_string(html_content, False, options=options)
+        pdf_output = pdfkit.from_string(html_content, False, configuration=config, options=options)
         
         response = make_response(pdf_output)
         response.headers['Content-Type'] = 'application/pdf'
