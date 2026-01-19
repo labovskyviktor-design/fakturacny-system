@@ -1,6 +1,6 @@
 # Railway Nixpacks konfigurácia
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig"]
+nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "wkhtmltopdf"]
 
 [variables]
 PYTHONPATH = ".:$PYTHONPATH"

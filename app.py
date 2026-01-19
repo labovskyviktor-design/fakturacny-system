@@ -776,104 +776,56 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Použijeme fpdf2 (čisto Python knižnica, 100% kompatibilná s Railway)
+    # Použijeme pdfkit (wkhtmltopdf wrapper) pre vysokú kvalitu a zachovanie dizajnu
     try:
-        from fpdf import FPDF, HTMLMixin
-        import os
-        import glob
-        import unicodedata
-        import re
-        from bs4 import BeautifulSoup
+        import pdfkit
         
-        class MyFPDF(FPDF, HTMLMixin):
-            pass
+        # Konfigurácia pdfkit pre Railway
+        # wkhtmltopdf by mal byť v PATH po pridaní do nixpacks.toml
+        options = {
+            'page-size': 'A4',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'quiet': ''
+        }
         
-        pdf = MyFPDF()
-        pdf.add_page()
-        
-        # 1. Pokúsime sa nájsť Unicode font pre slovenské znaky
-        font_found = False
-        possible_font_dirs = ["/usr/share/fonts", "/usr/local/share/fonts", "/nix/store", "static/fonts"]
-        dejavu_paths = []
-        for d in possible_font_dirs:
-            if os.path.exists(d):
-                dejavu_paths.extend(glob.glob(os.path.join(d, "**/DejaVuSans.ttf"), recursive=True))
-        
-        if dejavu_paths:
-            font_path = dejavu_paths[0]
-            try:
-                pdf.add_font("DejaVu", "", font_path)
-                pdf.set_font("DejaVu", "", 10)
-                font_found = True
-            except Exception: pass
-        
-        if not font_found:
-            pdf.set_font("helvetica", size=10)
-            # Odstránime diakritiku len ak nemáme font
-            html = unicodedata.normalize('NFKD', html).encode('ascii', 'ignore').decode('ascii')
-        
-        # 2. DEFINITÍVNE ČISTENIE HTML pomocou BeautifulSoup
-        soup = BeautifulSoup(html, 'html.parser')
-        
-        # Odstránime nebezpečné sekcie
-        for s in soup(["style", "script", "link"]):
-            s.decompose()
-            
-        # Vyčistíme všetky bunky tabuliek (fpdf2-html nezvláda vnorené tagy v TD/TH)
-        for cell in soup.find_all(['td', 'th']):
-            cell_text = cell.get_text(separator=' ').strip()
-            cell.clear()
-            cell.string = cell_text
-            
-        # Premeníme divy na p
-        for div in soup.find_all('div'):
-            p_tag = soup.new_tag("p")
-            p_tag.string = div.get_text(separator=' ')
-            div.replace_with(p_tag)
-            
-        clean_html = str(soup)
-        
-        try:
-            pdf.write_html(clean_html)
-        except Exception as e:
-            # Posledná záchrana: čistý text
-            app.logger.error(f"fpdf2 write_html failed: {e}")
-            pdf = MyFPDF()
-            pdf.add_page()
-            pdf.set_font("helvetica", size=10)
-            pdf.write(5, soup.get_text())
-        
-        pdf_output = pdf.output()
-        return bytes(pdf_output), "application/pdf", True
+        # Ak sme na Railway, wkhtmltopdf by mal byť prístupný
+        pdf_data = pdfkit.from_string(html, False, options=options)
+        return pdf_data, "application/pdf", True
         
     except Exception as e:
         error_msg = str(e)
-        import traceback
-        trace_msg = traceback.format_exc()
-        app.logger.error(f"fpdf2 generation failed: {error_msg}\n{trace_msg}")
+        app.logger.error(f"pdfkit generation failed: {error_msg}")
         
-    # Ak všetko zlyhá, vrátime HTML a chybovú správu
+    # Ak zlyhá aj pdfkit, vrátime HTML s chybou
     return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
 
 @app.route('/debug/pdf-test')
 @login_required
 def debug_pdf_test():
-    """Testovacia cesta na overenie funkčnosti fpdf2 na serveri"""
+    """Testovacia cesta na overenie funkčnosti pdfkit na serveri"""
     if not current_user.is_authenticated:
         return "Not authorized", 403
         
     try:
-        from fpdf import FPDF, HTMLMixin
-        class MyFPDF(FPDF, HTMLMixin):
-            pass
-            
-        pdf = MyFPDF()
-        pdf.add_page()
-        pdf.set_font("helvetica", size=12)
-        pdf.write_html("<h1>PDF Test</h1><p>Ak toto vidite, fpdf2 na serveri funguje!</p>")
+        import pdfkit
+        html_content = """
+        <html>
+            <head><meta charset="UTF-8"></head>
+            <body>
+                <h1 style="color: #1e40af;">PDFKit Test</h1>
+                <p>Ak toto vidíte s modrým nadpisom a správnou diakritikou (čšž), PDFKit na serveri funguje perfektne!</p>
+            </body>
+        </html>
+        """
+        options = {'encoding': "UTF-8", 'quiet': ''}
+        pdf_output = pdfkit.from_string(html_content, False, options=options)
         
-        pdf_output = pdf.output()
-        response = make_response(bytes(pdf_output))
+        response = make_response(pdf_output)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = 'inline; filename=test.pdf'
         return response
