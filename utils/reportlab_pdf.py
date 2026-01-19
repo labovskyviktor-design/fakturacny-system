@@ -235,10 +235,10 @@ class InvoicePDF:
         return t
 
     def _create_footer_section(self):
-        """Reference Style Footer: QR Left, Totals Right (Big)"""
+        """Reference Style Footer: QR Left, Totals Right (Big), Signature Middle"""
         
-        # Left: Note + QR
-        note_text = "Nie sme platcami DPH." # Logic exists in template, hardcoding for visual structure check
+        # --- LEFT: Note + QR ---
+        note_text = "Nie sme platcami DPH."
         if self.invoice.supplier.is_vat_payer: note_text = "Sme platci DPH."
         
         left_elements = [
@@ -250,31 +250,64 @@ class InvoicePDF:
              try:
                 img_data = self.qr_code_base64.split(',')[1] if ',' in self.qr_code_base64 else self.qr_code_base64
                 img_bytes = base64.b64decode(img_data)
-                qr_img = PlatypusImage(io.BytesIO(img_bytes), width=3.5*cm, height=3.5*cm)
+                # Ensure valid image
+                qr_img = PlatypusImage(io.BytesIO(img_bytes), width=3*cm, height=3*cm)
                 left_elements.append(qr_img)
                 left_elements.append(Paragraph("PAY by square", self.style_label))
              except: pass
 
-        # Right: Totals (Aligned Right)
+        # --- CENTER/RIGHT: Signature & Stamp ---
+        sig_elements = []
+        # Check for Stamp
+        if self.invoice.supplier.stamp_image:
+            try:
+                s_data = self.invoice.supplier.stamp_image.split(',')[1] if ',' in self.invoice.supplier.stamp_image else self.invoice.supplier.stamp_image
+                s_bytes = base64.b64decode(s_data)
+                stamp_img = PlatypusImage(io.BytesIO(s_bytes), width=3.5*cm, height=3.5*cm, kind='proportional')
+                sig_elements.append(stamp_img)
+            except: pass
+            
+        # Check for Signature (overlay or adjacent?) -> stacked for now
+        if self.invoice.supplier.signature_image:
+            try:
+                sig_data = self.invoice.supplier.signature_image.split(',')[1] if ',' in self.invoice.supplier.signature_image else self.invoice.supplier.signature_image
+                sig_bytes = base64.b64decode(sig_data)
+                # Signature often wider
+                sig_img = PlatypusImage(io.BytesIO(sig_bytes), width=4*cm, height=2*cm, kind='proportional')
+                sig_elements.append(sig_img)
+            except: pass
+            
+        if not sig_elements:
+            sig_elements.append(Paragraph("Podpis a pečiatka:", self.style_label))
+
+
+        # --- RIGHT: Totals ---
         total_p = Paragraph(f"{format_currency(self.invoice.total)}", ParagraphStyle('TotalBig', parent=self.style_bold, fontSize=18, textColor=colors.black, alignment=TA_RIGHT))
         
-        totals_data = [
-            [Paragraph("Celková suma:", self.style_bold_big), total_p],
-            [Paragraph("", self.style_normal), Paragraph("", self.style_normal)] # Spacing
-        ]
-        totals_table = Table(totals_data, colWidths=[4*cm, 5*cm])
+        totals_list = []
+        totals_list.append([Paragraph("Základ:", self.style_normal), format_currency(self.invoice.subtotal)])
+        if self.invoice.vat_rate > 0:
+             totals_list.append([Paragraph(f"DPH {int(self.invoice.vat_rate)}%:", self.style_normal), format_currency(self.invoice.vat_amount)])
+        totals_list.append([Paragraph("Celkom:", self.style_bold_big), total_p])
+
+        totals_table = Table(totals_list, colWidths=[3*cm, 4*cm])
         totals_table.setStyle(TableStyle([
             ('ALIGN', (1,0), (1,-1), 'RIGHT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LINEABOVE', (0,-1), (-1,-1), 1, self.c_border),
+            ('TOPPADDING', (0,-1), (-1,-1), 8),
         ]))
         
-        # Assembly
-        data = [[left_elements, totals_table]]
-        t = Table(data, colWidths=[10*cm, 9*cm])
+        # Assembly: 3 Columns [ QR | Signature/Stamp | Totals ]
+        data = [[left_elements, sig_elements, totals_table]]
+        t = Table(data, colWidths=[6*cm, 6*cm, 7*cm])
         t.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('ALIGN', (1,0), (1,-1), 'RIGHT'),
-            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border), # Separator
+            ('ALIGN', (0,0), (0,-1), 'LEFT'),   # QR Left
+            ('ALIGN', (1,0), (1,-1), 'CENTER'), # Sig Center
+            ('ALIGN', (2,0), (2,-1), 'RIGHT'),  # Totals Right
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
         ]))
         return t
 
