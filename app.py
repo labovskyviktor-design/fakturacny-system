@@ -834,15 +834,19 @@ def _get_invoice_pdf_data(invoice):
         # fpdf2-html nemá rád <div> a už vôbec nie vnorené v <td>
         clean_html = clean_html.replace('<div>', '<p>').replace('</div>', '</p>')
         
-        # Ak by v <td> ostal <p>, fpdf2 môže stále protestovať. 
-        # Odstránime <p> a </p> vnútri <td>
-        # Toto je brute-force riešenie pre maximálnu stabilitu.
-        def remove_tags_in_td(match):
-            content = match.group(1)
-            content = content.replace('<p>', '').replace('</p>', '<br>')
-            return f'<td>{content}</td>'
+        # fpdf2-html padá na AKÉKOĽVEK vnorené značky v <td> (p, div, span, b, i...)
+        # Toto je definitívne "nukleárne" riešenie: vnútri <td> a <th> necháme len čistý text a <br>
+        def clean_table_cells(match):
+            tag_name = match.group(1) # td alebo th
+            tag_attrs = match.group(2) # atribúty (štýly atď.)
+            content = match.group(3) # vnútro bunky
+            
+            # Odstránime VŠETKY značky okrem <br>
+            # (?!br) je lookahead, ktorý povie "všetko okrem br"
+            clean_content = re.sub(r'<(?!br\s*/?>)[^>]+>', '', content)
+            return f'<{tag_name}{tag_attrs}>{clean_content}</{tag_name}>'
         
-        clean_html = re.sub(r'<td>(.*?)</td>', remove_tags_in_td, clean_html, flags=re.DOTALL)
+        clean_html = re.sub(r'<(td|th)([^>]*)>(.*?)</\1>', clean_table_cells, clean_html, flags=re.DOTALL)
         
         # fpdf2-html vyžaduje veľmi jednoduché značky
         pdf.write_html(clean_html)
