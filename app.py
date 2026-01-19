@@ -776,68 +776,54 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Pokúsime sa použiť WeasyPrint (ak sú dostupné knižnice)
+    # Prioritne skúsime xhtml2pdf (čisto Python knižnica bez systémových závislostí)
     try:
-        from weasyprint import HTML, CSS
+        import io
+        from xhtml2pdf import pisa
         
-        css = CSS(string='''
-            @page {
-                size: A4;
-                margin: 1cm;
-            }
-            body {
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-            }
-        ''')
+        result_file = io.BytesIO()
+        pisa_status = pisa.CreatePDF(html, dest=result_file)
         
-        pdf_data = HTML(string=html).write_pdf(stylesheets=[css])
-        return pdf_data, "application/pdf", True
+        if not pisa_status.err:
+            return result_file.getvalue(), "application/pdf", True
+        else:
+            error_msg = f"xhtml2pdf error code: {pisa_status.err}"
+    except Exception as e:
+        error_msg = str(e)
+        app.logger.error(f"xhtml2pdf generation failed: {error_msg}")
         
-    except Exception as we_error:
-        app.logger.warning(f"WeasyPrint failed, trying xhtml2pdf: {we_error}")
-        
-        # Fallback na xhtml2pdf (čisto Python knižnica bez systémových závislostí)
-        try:
-            import io
-            from xhtml2pdf import pisa
-            
-            result_file = io.BytesIO()
-            pisa_status = pisa.CreatePDF(html, dest=result_file)
-            
-            if not pisa_status.err:
-                return result_file.getvalue(), "application/pdf", True
-            else:
-                error_msg = f"xhtml2pdf error code: {pisa_status.err}"
-        except Exception as e:
-            error_msg = str(e)
-            
-        import traceback
-        trace_msg = traceback.format_exc()
-        app.logger.error(f"Both PDF engines failed. xhtml2pdf error: {error_msg}\n{trace_msg}")
-        
-        # Ak všetko zlyhá, vrátime HTML a chybovú správu
-        return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
+    import traceback
+    trace_msg = traceback.format_exc()
+    app.logger.error(f"PDF generation failed. error: {error_msg}\n{trace_msg}")
+    
+    # Ak všetko zlyhá, vrátime HTML a chybovú správu
+    return html.encode('utf-8'), "text/html", f"ERROR: {error_msg}"
 
 @app.route('/debug/pdf-test')
 @login_required
 def debug_pdf_test():
-    """Testovacia cesta na overenie funkčnosti WeasyPrint na serveri"""
+    """Testovacia cesta na overenie funkčnosti xhtml2pdf na serveri"""
     if not current_user.is_authenticated:
         return "Not authorized", 403
         
     try:
-        from weasyprint import HTML
-        html_content = "<h1>PDF Test</h1><p>Ak toto vidíte ako PDF, WeasyPrint funguje.</p>"
-        pdf_data = HTML(string=html_content).write_pdf()
+        import io
+        from xhtml2pdf import pisa
+        html_content = "<h1>PDF Test</h1><p>Ak toto vidíte ako PDF, xhtml2pdf funguje.</p>"
         
-        response = make_response(pdf_data)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'inline; filename=test.pdf'
-        return response
+        result_file = io.BytesIO()
+        pisa_status = pisa.CreatePDF(html_content, dest=result_file)
+        
+        if not pisa_status.err:
+            response = make_response(result_file.getvalue())
+            response.headers['Content-Type'] = 'application/pdf'
+            response.headers['Content-Disposition'] = 'inline; filename=test.pdf'
+            return response
+        else:
+            return f"PDF Test zlyhal: error code {pisa_status.err}", 500
     except Exception as e:
         import traceback
-        return f"PDF Test zlyhal: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
+        return f"PDF Test zlyhal s výnimkou: {str(e)}<br><pre>{traceback.format_exc()}</pre>", 500
 
 
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
