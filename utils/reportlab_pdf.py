@@ -12,7 +12,10 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
 import io
+import base64
+import os
 
 
 # Slovak month names
@@ -42,6 +45,33 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     """
     buffer = io.BytesIO()
     
+    # Register UTF-8 font for Slovak characters
+    # Using Helvetica with proper encoding
+    from reportlab.pdfbase.pdfmetrics import registerFont, registerFontFamily
+    from reportlab.pdfbase.ttfonts import TTFont
+    
+    # Try to use DejaVu Sans (supports Slovak characters)
+    try:
+        # On most systems, DejaVu Sans is available
+        font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+        if not os.path.exists(font_path):
+            # Try alternative paths
+            font_path = '/usr/share/fonts/dejavu/DejaVuSans.ttf'
+        
+        if os.path.exists(font_path):
+            registerFont(TTFont('DejaVu', font_path))
+            registerFont(TTFont('DejaVu-Bold', font_path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')))
+            font_name = 'DejaVu'
+            font_bold = 'DejaVu-Bold'
+        else:
+            # Fallback to Helvetica with UTF-8 encoding
+            font_name = 'Helvetica'
+            font_bold = 'Helvetica-Bold'
+    except:
+        # Fallback to Helvetica
+        font_name = 'Helvetica'
+        font_bold = 'Helvetica-Bold'
+    
     # Create canvas
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -67,23 +97,23 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     
     # Title
     c.setFillColor(primary_blue)
-    c.setFont("Helvetica-Bold", 26)
+    c.setFont(font_bold, 26)
     c.drawString(left_margin, y_position - 10, "FAKTÚRA")
     
     # Invoice number
     c.setFillColor(text_gray)
-    c.setFont("Helvetica", 12)
+    c.setFont(font_name, 12)
     c.drawString(left_margin, y_position - 30, f"číslo {invoice.invoice_number}")
     
     # Supplier info (right side)
     c.setFillColor(text_gray)
-    c.setFont("Helvetica", 9)
+    c.setFont(font_name, 9)
     supplier_x = right_margin - 200
-    c.setFont("Helvetica-Bold", 12)
+    c.setFont(font_bold, 12)
     c.setFillColor(dark_text)
     c.drawRightString(right_margin, y_position - 10, invoice.supplier.name)
     
-    c.setFont("Helvetica", 9)
+    c.setFont(font_name, 9)
     c.setFillColor(text_gray)
     c.drawRightString(right_margin, y_position - 25, invoice.supplier.street)
     c.drawRightString(right_margin, y_position - 38, 
@@ -346,11 +376,28 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
         c.drawString(left_margin + 60, y, invoice.supplier.iban)
         c.setFillColor(dark_text)
         
-        # QR code placeholder (if provided)
+        # QR code (if provided)
         if qr_code_base64:
-            # Note: Would need to decode base64 and draw image
-            # For now, just note the position
-            pass
+            try:
+                # Decode base64 QR code
+                qr_data = qr_code_base64.split(',')[1] if ',' in qr_code_base64 else qr_code_base64
+                qr_bytes = base64.b64decode(qr_data)
+                qr_buffer = io.BytesIO(qr_bytes)
+                
+                # Draw QR code
+                qr_size = 120
+                qr_x = right_margin - qr_size - 20
+                qr_y = y_position - 75
+                
+                c.drawImage(ImageReader(qr_buffer), qr_x, qr_y, width=qr_size, height=qr_size)
+                
+                # Label
+                c.setFont(font_bold, 8)
+                c.setFillColor(text_gray)
+                c.drawCentredString(qr_x + qr_size/2, qr_y + qr_size + 5, "PAY by square")
+            except Exception as e:
+                # If QR code fails, just skip it
+                pass
         
         y_position -= 100
     
