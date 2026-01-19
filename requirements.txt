@@ -29,6 +29,6 @@ sendgrid>=6.10.0,<7.0.0
 # Monitoring
 sentry-sdk[flask]>=1.40.0,<2.0.0
 
-# PDF Generation (Playwright - Headless Chrome)
-playwright>=1.40.0
+# PDF Generation (ReportLab - Pure Python, Zero Dependencies)
+reportlab>=4.0.0
 

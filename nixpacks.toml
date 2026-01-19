@@ -6,14 +6,10 @@ nixPkgs = [
 ]
 
 [phases.install]
-cmds = [
-    "pip install -r requirements.txt",
-    "PLAYWRIGHT_BROWSERS_PATH=/opt/render/project/src/ms-playwright playwright install --with-deps chromium"
-]
+cmds = ["pip install -r requirements.txt"]
 
 [variables]
 PYTHONPATH = "."
-PLAYWRIGHT_BROWSERS_PATH = "/opt/render/project/src/ms-playwright"
 
 [start]
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"

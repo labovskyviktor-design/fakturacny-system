@@ -754,7 +754,7 @@ def invoice_detail(invoice_id):
 
 
 def _get_invoice_pdf_data(invoice):
-    """Pomocná funkcia na generovanie PDF dát faktúry - Playwright verzia"""
+    """Pomocná funkcia na generovanie PDF dát faktúry - ReportLab verzia"""
     # Generujeme QR kód
     qr_code = None
     if invoice.payment_method == 'prevod' and invoice.supplier.iban:
@@ -770,74 +770,45 @@ def _get_invoice_pdf_data(invoice):
         except Exception as e:
             app.logger.error(f"Chyba pri generovaní QR kódu pre PDF: {e}")
     
-    # Renderujeme HTML šablónu
-    html = render_template('invoice_pdf.html',
-        invoice=invoice,
-        qr_code=qr_code
-    )
-    
-    # --- PLAYWRIGHT PDF GENERATION (HEADLESS CHROME) ---
+    # === REPORTLAB PDF GENERATION (PURE PYTHON) ===
     app.logger.info("=" * 60)
     app.logger.info(f"Starting PDF generation for invoice {invoice.invoice_number}")
-    app.logger.info("Using Playwright (Headless Chromium)")
+    app.logger.info("Using ReportLab (Pure Python - Zero Dependencies)")
     
     try:
-        from playwright.sync_api import sync_playwright
+        from utils.reportlab_pdf import generate_invoice_pdf_reportlab
         
-        app.logger.info("Playwright imported successfully")
+        app.logger.info("ReportLab imported successfully")
+        app.logger.info("Generating PDF with professional layout...")
         
-        with sync_playwright() as p:
-            app.logger.info("Launching Chromium browser...")
-            browser = p.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-setuid-sandbox']
-            )
-            
-            page = browser.new_page()
-            app.logger.info("Setting HTML content...")
-            page.set_content(html, wait_until='networkidle')
-            
-            app.logger.info("Generating PDF...")
-            pdf_bytes = page.pdf(
-                format='A4',
-                print_background=True,
-                margin={
-                    'top': '0',
-                    'right': '0',
-                    'bottom': '0',
-                    'left': '0'
-                }
-            )
-            
-            browser.close()
-            
-            pdf_size = len(pdf_bytes)
-            app.logger.info(f"✓ PDF generated successfully! Size: {pdf_size} bytes")
-            app.logger.info("=" * 60)
-            
-            return pdf_bytes, "application/pdf", True
+        pdf_bytes = generate_invoice_pdf_reportlab(invoice, qr_code)
+        
+        pdf_size = len(pdf_bytes)
+        app.logger.info(f"✓ PDF generated successfully! Size: {pdf_size} bytes")
+        app.logger.info("=" * 60)
+        
+        return pdf_bytes, "application/pdf", True
                 
     except ImportError as e:
-        error_msg = f"Playwright import failed: {str(e)}"
+        error_msg = f"ReportLab import failed: {str(e)}"
         app.logger.error(f"IMPORT ERROR: {error_msg}")
-        app.logger.error("Run: pip install playwright && playwright install chromium")
+        app.logger.error("Run: pip install reportlab")
         app.logger.error(traceback.format_exc())
         app.logger.info("=" * 60)
+        
+        # Fallback to HTML
+        html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
         return html.encode('utf-8'), "text/html", error_msg
         
     except Exception as e:
         error_msg = f"PDF generation failed: {str(e)}"
-        app.logger.error(f"PLAYWRIGHT FAILURE: {error_msg}")
+        app.logger.error(f"REPORTLAB FAILURE: {error_msg}")
         app.logger.error("Full traceback:")
         app.logger.error(traceback.format_exc())
-        
-        # Try to provide more specific error information
-        if 'executable' in str(e).lower():
-            app.logger.error("→ Chromium browser not found. Run: playwright install chromium")
-        elif 'timeout' in str(e).lower():
-            app.logger.error("→ Page load timeout. Check HTML template complexity.")
-        
         app.logger.info("=" * 60)
+        
+        # Fallback to HTML
+        html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
         return html.encode('utf-8'), "text/html", error_msg
 
 @app.route('/debug/pdf-test')
