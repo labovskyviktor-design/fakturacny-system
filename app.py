@@ -776,25 +776,43 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez pdfkit a wkhtmltopdf-binary (VLASTNÁ BINÁRKA V PYTHONE)
+    # Generovanie PDF cez pdfkit (wkhtmltopdf) s fixnými cestami z buildu
     try:
         import pdfkit
-        import wkhtmltopdf_binary
         import os
         import shutil
         
-        # 1. Získame cestu k binárke priamo z nainštalovaného balíka (Garantovaná cesta)
-        wk_path = wkhtmltopdf_binary.get_wkhtmltopdf_path()
-        app.logger.info(f"Using self-contained wkhtmltopdf binary at: {wk_path}")
+        # 1. Skúsime prečítať cesty uložené počas buildu (Railway špeciál)
+        wk_path = None
+        xvfb_path = None
         
-        # 2. Nastavenie xvfb pre headless prostredie (Railway)
-        xvfb_path = shutil.which('xvfb-run')
+        if os.path.exists('wkhtml_path.txt'):
+            with open('wkhtml_path.txt', 'r') as f:
+                wk_path = f.read().strip()
         
-        if xvfb_path and os.name != 'nt':
-            # Povieme pdfkit-u, aby bežal cez xvfb-run -a
-            config = pdfkit.configuration(wkhtmltopdf=f"{xvfb_path} -a {wk_path}")
-        else:
-            config = pdfkit.configuration(wkhtmltopdf=wk_path)
+        if os.path.exists('xvfb_path.txt'):
+            with open('xvfb_path.txt', 'r') as f:
+                xvfb_path = f.read().strip()
+                
+        # 2. Fallback na standardne vyhladavanie (lokalne/ak file zlyha)
+        if not wk_path or not os.path.exists(wk_path):
+            wk_path = shutil.which('wkhtmltopdf') or '/usr/bin/wkhtmltopdf'
+            
+        if not xvfb_path or not os.path.exists(xvfb_path):
+            xvfb_path = shutil.which('xvfb-run') or '/usr/bin/xvfb-run'
+
+        if not os.path.exists(wk_path):
+            app.logger.error(f"Binary NOT FOUND at {wk_path}. PATH: {os.environ.get('PATH')}")
+            raise Exception(f"wkhtmltopdf binary not found. Path searched: {wk_path}")
+
+        # 3. Konfigurácia PDF
+        app.logger.info(f"PDF Engine: {wk_path} (xvfb: {xvfb_path})")
+        
+        config_cmd = wk_path
+        if xvfb_path and os.path.exists(xvfb_path) and os.name != 'nt':
+            config_cmd = f"{xvfb_path} -a {wk_path}"
+            
+        config = pdfkit.configuration(wkhtmltopdf=config_cmd)
 
         options = {
             'page-size': 'A4',
@@ -808,7 +826,7 @@ def _get_invoice_pdf_data(invoice):
             'quiet': ''
         }
         
-        # 3. Samotné generovanie
+        # 4. Generovanie
         pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
         return pdf_data, "application/pdf", True
                 
@@ -826,26 +844,29 @@ def debug_pdf_test():
         
     try:
         import pdfkit
-        import wkhtmltopdf_binary
-        import shutil
         import os
         
-        wk_path = wkhtmltopdf_binary.get_wkhtmltopdf_path()
-        xvfb_path = shutil.which('xvfb-run')
+        wk_path = "Unknown"
+        xvfb_path = "Unknown"
         
+        if os.path.exists('wkhtml_path.txt'):
+            with open('wkhtml_path.txt', 'r') as f: wk_path = f.read().strip()
+        if os.path.exists('xvfb_path.txt'):
+            with open('xvfb_path.txt', 'r') as f: xvfb_path = f.read().strip()
+
         html_content = f"""
         <html>
             <body style="font-family: sans-serif; padding: 40px;">
-                <h1 style="color: #1e40af;">Self-Contained PDF Status: SUCCESS ✅</h1>
-                <p><b>Binary Path:</b> {wk_path}</p>
-                <p><b>Xvfb Path:</b> {xvfb_path}</p>
-                <p>Ak toto vidíte, binárka sa úspešne našla vo vnútri aplikácie.</p>
+                <h1 style="color: #1e40af;">Frozen Discovery Status: DEBUG ✅</h1>
+                <p><b>WKHTML Path (from build):</b> {wk_path}</p>
+                <p><b>XVFB Path (from build):</b> {xvfb_path}</p>
+                <p><b>Exists on disk?</b> {str(os.path.exists(wk_path))}</p>
             </body>
         </html>
         """
         
         config_path = wk_path
-        if xvfb_path and os.name != 'nt':
+        if xvfb_path and os.path.exists(xvfb_path):
             config_path = f"{xvfb_path} -a {wk_path}"
         
         config = pdfkit.configuration(wkhtmltopdf=config_path)

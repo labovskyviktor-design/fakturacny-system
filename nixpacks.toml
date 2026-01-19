@@ -1,11 +1,19 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts"]
+nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts", "findutils"]
 
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
+[phases.build]
+cmds = [
+    "pip install -r requirements.txt",
+    "find /nix/store -name wkhtmltopdf -type f -executable -print -quit > wkhtml_path.txt || echo '/usr/bin/wkhtmltopdf' > wkhtml_path.txt",
+    "find /nix/store -name xvfb-run -type f -executable -print -quit > xvfb_path.txt || echo '/usr/bin/xvfb-run' > xvfb_path.txt",
+    "echo 'PATH CAPTURED:'",
+    "cat wkhtml_path.txt",
+    "cat xvfb_path.txt"
+]
 
 [variables]
 PYTHONPATH = "."
+LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib"
 
 [start]
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
