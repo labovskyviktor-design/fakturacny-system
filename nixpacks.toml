@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "gdk-pixbuf", "libffi", "shared-mime-info", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
+nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "dejavu_fonts", "fontconfig", "cairo", "pango", "gdk-pixbuf", "libffi", "libxml2", "libxslt", "shared-mime-info", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
 
 [phases.build]
 cmds = [
