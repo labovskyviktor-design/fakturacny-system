@@ -780,6 +780,9 @@ def _get_invoice_pdf_data(invoice):
     try:
         from fpdf import FPDF, HTMLMixin
         import os
+        import glob
+        import unicodedata
+        import re
         
         class MyFPDF(FPDF, HTMLMixin):
             pass
@@ -787,34 +790,39 @@ def _get_invoice_pdf_data(invoice):
         pdf = MyFPDF()
         pdf.add_page()
         
-        # Pokúsime sa nájsť Unicode font pre slovenské znaky
-        # Na Railway (Nix) môžu byť cesty rôzne, skúsime najbežnejšie
-        font_paths = [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-            "static/fonts/DejaVuSans.ttf"  # Ak by sme ho pribalili
+        # 1. Pokúsime sa nájsť Unicode font pre slovenské znaky
+        font_found = False
+        possible_font_dirs = [
+            "/usr/share/fonts",
+            "/usr/local/share/fonts",
+            "/nix/store",
+            "static/fonts"
         ]
         
-        font_found = False
-        for path in font_paths:
-            if os.path.exists(path):
-                pdf.add_font("DejaVu", "", path)
+        # Hľadáme DejaVuSans.ttf
+        dejavu_paths = []
+        for d in possible_font_dirs:
+            if os.path.exists(d):
+                dejavu_paths.extend(glob.glob(os.path.join(d, "**/DejaVuSans.ttf"), recursive=True))
+        
+        if dejavu_paths:
+            font_path = dejavu_paths[0]
+            try:
+                pdf.add_font("DejaVu", "", font_path)
                 pdf.set_font("DejaVu", "", 10)
                 font_found = True
-                break
+                app.logger.info(f"Using Unicode font: {font_path}")
+            except Exception as fe:
+                app.logger.error(f"Failed to load found font {font_path}: {fe}")
         
+        # 2. Ak font nemáme, musíme OSTRÁNIŤ diakritiku, inak fpdf2 spadne na helvetice
         if not font_found:
-            # Ak font nenájdeme, použijeme helveticu a odstránime diakritiku
-            # aby sme sa vyhli pádu "Character ... is outside the range"
             pdf.set_font("helvetica", size=10)
-            import unicodedata
-            html = ''.join(c for c in unicodedata.normalize('NFD', html)
-                          if unicodedata.category(c) != 'Mn')
-            app.logger.warning("Unicode font not found, stripping accents to avoid crash.")
+            app.logger.warning("Unicode font not found, forcing ASCII conversion for Helvetica.")
+            # Drastické odstránenie všetkého mimo ASCII (mäkčene, dĺžne)
+            html = unicodedata.normalize('NFKD', html).encode('ascii', 'ignore').decode('ascii')
         
-        # fpdf2-html nepodporuje komplexné CSS a flexbox.
-        # Odstránime <style> bloky a <link>, ktoré fpdf2 nevie spracovať.
-        import re
+        # 3. Vyčistíme HTML pre fpdf2 (nepodporuje zložité CSS)
         clean_html = re.sub(r'<style>.*?</style>', '', html, flags=re.DOTALL)
         clean_html = re.sub(r'<link.*?>', '', clean_html)
         
