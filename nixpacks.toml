@@ -2,7 +2,9 @@
 nixPkgs = [
     "python311",
     "gcc",
-    "postgresql"
+    "postgresql",
+    "dejavu_fonts",
+    "fontconfig"
 ]
 
 [phases.install]

@@ -70,6 +70,25 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
              regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
              bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
 
+        # 3. Try System Paths (Nixpacks / Linux)
+        if not os.path.exists(regular_font):
+            system_paths = [
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+                '/nix/profile/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/nix/var/nix/profiles/default/share/fonts/truetype/dejavu/DejaVuSans.ttf'
+            ]
+            for path in system_paths:
+                if os.path.exists(path):
+                    regular_font = path
+                    bold_font = path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
+                    break
+
+        if os.path.exists(regular_font):
+            reg_size = os.path.getsize(regular_font)
+            if reg_size < 1000:
+                raise ValueError(f"Font file too small ({reg_size} bytes): {regular_font}")
+        
         if os.path.exists(regular_font) and os.path.exists(bold_font):
             registerFont(TTFont('DejaVu', regular_font))
             registerFont(TTFont('DejaVu-Bold', bold_font))
