@@ -1,17 +1,21 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "pkg-config", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts", "cairo"]
+nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
 
 [phases.build]
 cmds = [
-    "pip install -r requirements.txt",
-    "cp $(which wkhtmltopdf) ./wkhtmltopdf_bin || echo 'wkhtmltopdf not in path' > wkhtml_error.log",
-    "cp $(which xvfb-run) ./xvfb_run_bin || echo 'xvfb-run not in path' > xvfb_error.log",
-    "chmod +x ./wkhtmltopdf_bin ./xvfb_run_bin || true"
+    "mkdir -p bin",
+    "ln -sf $(which wkhtmltopdf) bin/wkhtmltopdf",
+    "ln -sf $(which xvfb-run) bin/xvfb-run",
+    "echo '#!/bin/bash' > bin/pdf_wrapper.sh",
+    "echo '$(which xvfb-run) -a $(which wkhtmltopdf) \"$@\"' >> bin/pdf_wrapper.sh",
+    "chmod +x bin/pdf_wrapper.sh bin/wkhtmltopdf bin/xvfb-run"
 ]
 
 [variables]
 PYTHONPATH = "."
-LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib"
 
 [start]
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
