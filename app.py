@@ -782,35 +782,43 @@ def _get_invoice_pdf_data(invoice):
         import shutil
         import os
         
-        # Discovery binárky
-        wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
+        # 1. Lokálny wrapper skript (pre Railway) alebo systémová binárka
+        wrapper_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wkhtmltopdf_wrapper.sh')
+        
+        if os.path.exists(wrapper_path):
+            # Nastavíme práva na spustenie ak sme na linuxe
+            if os.name != 'nt':
+                os.chmod(wrapper_path, 0o755)
+            wkhtmltopdf_path = wrapper_path
+            app.logger.info(f"Using wkhtmltopdf wrapper at: {wkhtmltopdf_path}")
+        else:
+            wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
         
         if not wkhtmltopdf_path:
-            # Skúsime bežné cesty vrátane Nix store ciest
             potential_paths = [
                 "/usr/bin/wkhtmltopdf", 
                 "/usr/local/bin/wkhtmltopdf", 
                 "/opt/bin/wkhtmltopdf",
-                "/usr/bin/wkhtmltopdf-pack",
-                "C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe",
-                "C:\\Program Files (x86)\\wkhtmltopdf\\bin\\wkhtmltopdf.exe"
+                "/usr/bin/wkhtmltopdf-pack"
             ]
             for p in potential_paths:
                 if os.path.exists(p):
                     wkhtmltopdf_path = p
                     break
         
-        app.logger.info(f"PDF generation starting. Binary path: {wkhtmltopdf_path}")
+        app.logger.info(f"Final PDF binary choice: {wkhtmltopdf_path}")
             
         config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
         
         options = {
             'page-size': 'A4',
             'orientation': 'Portrait',
-            'margin-top': '0.75in',
-            'margin-right': '0.75in',
-            'margin-bottom': '0.75in',
-            'margin-left': '0.75in',
+            'page-width': '210mm',
+            'page-height': '297mm',
+            'margin-top': '15mm',
+            'margin-right': '15mm',
+            'margin-bottom': '15mm',
+            'margin-left': '15mm',
             'encoding': "UTF-8",
             'no-outline': None,
             'quiet': '',

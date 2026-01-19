@@ -13,7 +13,7 @@
 
         @page {
             size: A4 portrait;
-            margin: 1.5cm;
+            margin: 0;
         }
 
         body {
@@ -22,10 +22,14 @@
             color: #1e293b;
             line-height: 1.4;
             background: #fff;
+            width: 794px;
+            /* A4 width at 96 DPI */
+            margin: 0 auto;
         }
 
         .container {
             width: 100%;
+            padding: 1.5cm;
         }
 
         /* Helper for layouts without Flexbox */
