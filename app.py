@@ -796,20 +796,15 @@ def _get_invoice_pdf_data(invoice):
         app.logger.error(traceback.format_exc())
         app.logger.info("=" * 60)
         
-        # Fallback to HTML - DISABLE SILENT FALLBACK TO DEBUG
-        # html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
-        return f"CRITICAL ERROR: ReportLab Import Failed. {error_msg}".encode('utf-8'), "text/plain", error_msg
+        return pdf_bytes, "application/pdf", True
+                
+    except ImportError as e:
+        error_msg = f"ReportLab import failed: {str(e)}"
+        app.logger.error(f"IMPORT ERROR: {error_msg}")
+        return None, None, False
         
-    except Exception as e:
-        error_msg = f"PDF generation failed: {str(e)}"
-        app.logger.error(f"REPORTLAB FAILURE: {error_msg}")
-        app.logger.error("Full traceback:")
-        app.logger.error(traceback.format_exc())
-        app.logger.info("=" * 60)
-        
-        # Fallback to HTML - DISABLE SILENT FALLBACK TO DEBUG
-        # html = render_template('invoice_pdf.html', invoice=invoice, qr_code=qr_code)
-        return f"CRITICAL ERROR: ReportLab Crashed. {error_msg}".encode('utf-8'), "text/plain", error_msg
+
+
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -901,47 +896,68 @@ def test_direct_pdf():
 @app.route('/invoices/<int:invoice_id>/send', methods=['POST'])
 @login_required
 def invoice_send_email(invoice_id):
-    """Odoslanie faktúry emailom"""
-    invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
-    
-    if not invoice.client.email:
-        flash('Klient nemá nastavený email.', 'error')
-        return redirect(url_for('invoice_detail', invoice_id=invoice.id))
+    """Odoslanie faktúry emailom klientovi"""
+    app.logger.info(f"Preparing to email invoice {invoice_id}")
+    try:
+        from utils.email_service import send_email
         
-    subject = f'Faktúra {invoice.invoice_number} - {invoice.supplier.name}'
-    body = f"""Dobrý deň,
-    
-v prílohe Vám posielame faktúru č. {invoice.invoice_number} na sumu {invoice.total} EUR.
+        invoice = Invoice.query.filter_by(id=invoice_id, user_id=current_user.id).first_or_404()
+        
+        if not invoice.client.email:
+            flash(f'Klient {invoice.client.name} nemá nastavený email.', 'error')
+            return redirect(url_for('invoice_detail', invoice_id=invoice_id))
+            
+        # 1. Generate PDF
+        pdf_bytes, mime, success = _get_invoice_pdf_data(invoice)
+        if not success:
+            flash('Nepodarilo sa vygenerovať PDF pre prílohu.', 'error')
+            return redirect(url_for('invoice_detail', invoice_id=invoice_id))
+            
+        # 2. Prepare Email
+        subject = f"Faktúra č. {invoice.invoice_number} - {invoice.supplier.name}"
+        filename = f"Faktura_{invoice.invoice_number.replace('/', '_')}.pdf"
+        
+        # Robust Text Body
+        body = f"""Dobrý deň,
 
-Dátum splatnosti: {invoice.due_date.strftime('%d.%m.%Y')}
-Variabilný symbol: {invoice.variable_symbol}
+v prílohe Vám zasielame faktúru č. {invoice.invoice_number} v celkovej sume {format_currency(invoice.total)} EUR.
 
 S pozdravom,
 {invoice.supplier.name}
+{invoice.supplier.email if invoice.supplier.email else ''}
+{invoice.supplier.phone if invoice.supplier.phone else ''}
 """
-    
-    # Generujeme prílohu
-    pdf_data, content_type, result = _get_invoice_pdf_data(invoice)
-    
-    if result is True:
-        ext = "pdf"
-        attachments = [(f"faktura_{invoice.invoice_number}.pdf", content_type, pdf_data)]
-    else:
-        # Fallback na HTML
-        ext = "html"
-        error_msg = result if isinstance(result, str) else "Neznáma chyba"
-        flash(f"Generovanie PDF zlyhalo: {error_msg}. Súbor bol odoslaný ako HTML.", "warning")
-        attachments = [(f"faktura_{invoice.invoice_number}.html", content_type, pdf_data)]
-    
-    from utils.email_service import send_email
-    
-    if send_email(subject, invoice.client.email, body, attachments=attachments):
-        flash(f'Faktúra bola odoslaná na {invoice.client.email}', 'success')
-    else:
-        app.logger.error("Failed to send email - check logs")
-        flash('Nepodarilo sa odoslať email. Skontrolujte nastavenia (API kľúč).', 'error')
+
+        # 3. Send
+        sent = send_email(
+            subject=subject,
+            recipient=invoice.client.email,
+            body=body,
+            attachments=[(filename, 'application/pdf', pdf_bytes)]
+        )
         
-    return redirect(url_for('invoice_detail', invoice_id=invoice.id))
+        if sent:
+            app.logger.info(f"Invoice {invoice.invoice_number} sent to {invoice.client.email}")
+            
+            ActivityLog.log(
+                ActivityLog.ACTION_INVOICE_SENT,
+                f'Faktúra odoslaná emailom na {invoice.client.email}',
+                user_id=current_user.id,
+                invoice_id=invoice.id,
+                client_id=invoice.client.id
+            )
+            db.session.commit()
+            flash(f'Faktúra bola úspešne odoslaná na {invoice.client.email}.', 'success')
+        else:
+            flash('Odoslanie emailu zlyhalo. Skontrolujte logy a nastavenie SendGrid.', 'error')
+            
+        return redirect(url_for('invoice_detail', invoice_id=invoice_id))
+        
+    except Exception as e:
+        app.logger.error(f"EMAIL ERROR: {e}")
+        app.logger.error(traceback.format_exc())
+        flash('Došlo k kritickej chybe pri odosielaní emailu.', 'error')
+        return redirect(url_for('invoice_detail', invoice_id=invoice_id))
 
 
 @app.route('/invoices/<int:invoice_id>/pdf')
