@@ -776,70 +776,63 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Konfigurácia a generovanie PDF (wkhtmltopdf)
+    # Generovanie PDF cez Headless Chromium (moderný a spoľahlivý spôsob)
     try:
-        import pdfkit
-        import shutil
+        import subprocess
+        import tempfile
         import os
+        import shutil
         
-        # 1. Lokálny wrapper skript (pre Railway) alebo systémová binárka
-        wrapper_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wkhtmltopdf_wrapper.sh')
+        # 1. Hľadáme Chromium binárku
+        chrome_path = os.environ.get('CHROME_PATH') or shutil.which('chromium') or shutil.which('google-chrome') or shutil.which('google-chrome-stable')
         
-        if os.path.exists(wrapper_path):
-            # Nastavíme práva na spustenie ak sme na linuxe
-            if os.name != 'nt':
-                os.chmod(wrapper_path, 0o755)
-            wkhtmltopdf_path = wrapper_path
-            app.logger.info(f"Using wkhtmltopdf wrapper at: {wkhtmltopdf_path}")
-        else:
-            wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
-        
-        if not wkhtmltopdf_path:
-            potential_paths = [
-                "/usr/bin/wkhtmltopdf", 
-                "/usr/local/bin/wkhtmltopdf", 
-                "/opt/bin/wkhtmltopdf",
-                "/usr/bin/wkhtmltopdf-pack"
-            ]
-            for p in potential_paths:
+        if not chrome_path:
+            # Skúsime bežné cesty na Railway (Nix)
+            for p in ["/usr/bin/chromium", "/usr/bin/google-chrome", "/opt/google/chrome/chrome"]:
                 if os.path.exists(p):
-                    wkhtmltopdf_path = p
+                    chrome_path = p
                     break
         
-        app.logger.info(f"Final PDF binary choice: {wkhtmltopdf_path}")
+        if not chrome_path:
+            raise Exception("Chromium binary not found. Please ensure chromium is installed.")
             
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else pdfkit.configuration()
+        app.logger.info(f"Using Chromium for PDF: {chrome_path}")
         
-        options = {
-            'page-size': 'A4',
-            'orientation': 'Portrait',
-            'page-width': '210mm',
-            'page-height': '297mm',
-            'margin-top': '15mm',
-            'margin-right': '15mm',
-            'margin-bottom': '15mm',
-            'margin-left': '15mm',
-            'encoding': "UTF-8",
-            'no-outline': None,
-            'quiet': '',
-            'enable-local-file-access': None,
-            'disable-smart-shrinking': None,
-            'zoom': '1.0',
-            'dpi': '96'
-        }
-        
-        # Generujeme PDF
-        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
-        return pdf_data, "application/pdf", True
-        
+        # 2. Vytvoríme dočasné súbory
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            html_file = os.path.join(tmp_dir, 'invoice.html')
+            pdf_file = os.path.join(tmp_dir, 'invoice.pdf')
+            
+            with open(html_file, 'w', encoding='utf-8') as f:
+                f.write(html)
+            
+            # 3. Spustíme Chromium pre "Print to PDF"
+            # Parametery sú vyladené pre headless prostredie a A4 portrait
+            cmd = [
+                chrome_path,
+                '--headless',
+                '--disable-gpu',
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--print-to-pdf=' + pdf_file,
+                '--no-pdf-header-footer',
+                html_file
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0 and os.path.exists(pdf_file):
+                with open(pdf_file, 'rb') as f:
+                    pdf_data = f.read()
+                return pdf_data, "application/pdf", True
+            else:
+                error = result.stderr or result.stdout or "Unknown Chromium error"
+                raise Exception(f"Chromium failed: {error}")
+                
     except Exception as e:
-        error_msg = str(e)
-        import traceback
-        trace_msg = traceback.format_exc()
-        app.logger.error(f"pdfkit generation failed: {error_msg}\n{trace_msg}")
-        
-    # Fallback na HTML ak fakt nič nefunguje
-    return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {error_msg}"
+        app.logger.error(f"Chromium PDF generation failed: {str(e)}")
+        # Fallback na HTML ak fakt nič nefunguje
+        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -849,86 +842,50 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        import pdfkit
-        import shutil
-        import os
-        import sys
         import subprocess
+        import tempfile
+        import os
+        import shutil
         
         # Diagnostics
+        chrome_path = os.environ.get('CHROME_PATH') or shutil.which('chromium') or shutil.which('google-chrome')
         diag = {
-            "sys.executable": sys.executable,
-            "cwd": os.getcwd(),
+            "CHROME_PATH": chrome_path,
             "PATH": os.environ.get('PATH', ''),
-            "WKHTMLTOPDF_PATH_ENV": os.environ.get('WKHTMLTOPDF_PATH', ''),
+            "CWD": os.getcwd()
         }
         
-        # Check wrapper
-        wrapper_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wkhtmltopdf_wrapper.sh')
-        diag["Wrapper Path"] = wrapper_path
-        diag["Wrapper Exists"] = os.path.exists(wrapper_path)
-        if os.path.exists(wrapper_path):
-            diag["Wrapper Stats"] = oct(os.stat(wrapper_path).st_mode)[-3:]
-            # Try to make executable
-            try:
-                os.chmod(wrapper_path, 0o755)
-                diag["Chmod Success"] = True
-            except Exception as e:
-                diag["Chmod Error"] = str(e)
-
-        # Check binary
-        wkhtmltopdf_path = os.environ.get('WKHTMLTOPDF_PATH') or shutil.which('wkhtmltopdf')
-        if not wkhtmltopdf_path:
-            for p in ["/usr/bin/wkhtmltopdf", "/usr/local/bin/wkhtmltopdf", "/opt/bin/wkhtmltopdf", "/usr/bin/wkhtmltopdf-pack"]:
-                if os.path.exists(p):
-                    wkhtmltopdf_path = p
-                    break
-        diag["Detected Binary Path"] = wkhtmltopdf_path
-        
-        # Try to run --version
-        if wkhtmltopdf_path:
-            try:
-                res = subprocess.run([wkhtmltopdf_path, '--version'], capture_output=True, text=True, timeout=5)
-                diag["Version Output"] = res.stdout.strip()
-                diag["Version Error"] = res.stderr.strip()
-                diag["Version Exit Code"] = res.returncode
-            except Exception as e:
-                diag["Version Run Error"] = str(e)
-        
-        # Try to run wrapper --version if exists
-        if os.path.exists(wrapper_path):
-            try:
-                res = subprocess.run(['bash', wrapper_path, '--version'], capture_output=True, text=True, timeout=5)
-                diag["Wrapper Version Output"] = res.stdout.strip()
-                diag["Wrapper Version Error"] = res.stderr.strip()
-            except Exception as e:
-                diag["Wrapper Version Run Error"] = str(e)
-
         html_content = f"""
         <html>
-            <head><meta charset="UTF-8"><style>table{{border-collapse:collapse;width:100%;}} td,th{{border:1px solid #ddd;padding:8px;}} pre{{white-space:pre-wrap;word-break:break-all;}}</style></head>
+            <head><meta charset="UTF-8"></head>
             <body>
-                <h1>PDF Generation Diagnostics (Detailed)</h1>
-                <table>
-                    {"".join([f"<tr><th>{k}</th><td><pre>{v}</pre></td></tr>" for k, v in diag.items()])}
-                </table>
-                <hr>
-                <p>Ak toto vidíte ako PDF, pdfkit funguje. Ak ako HTML, pozrite tabuľku vyššie.</p>
+                <h1>Chromium PDF Diagnostics</h1>
+                <pre>{str(diag)}</pre>
+                <p>Ak toto vidíte ako PDF, Chromium funguje!</p>
             </body>
         </html>
         """
         
-        options = {'encoding': "UTF-8", 'quiet': '', 'orientation': 'Portrait'}
-        config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else None
-        
-        try:
-            pdf_output = pdfkit.from_string(html_content, False, configuration=config, options=options)
-            response = make_response(pdf_output)
-            response.headers['Content-Type'] = 'application/pdf'
-            response.headers['Content-Disposition'] = 'inline; filename=debug_test.pdf'
-            return response
-        except Exception as e:
-            return f"<h1>PDFKit Failed</h1><p>Error: {str(e)}</p><hr>{html_content}", 500
+        if not chrome_path:
+            return f"Chromium nenájdený! Diag: {diag}"
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            pdf_file = os.path.join(tmp_dir, 'test.pdf')
+            html_file = os.path.join(tmp_dir, 'test.html')
+            with open(html_file, 'w') as f: f.write(html_content)
+            
+            cmd = [chrome_path, '--headless', '--no-sandbox', '--disable-gpu', '--print-to-pdf=' + pdf_file, html_file]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            
+            if os.path.exists(pdf_file):
+                with open(pdf_file, 'rb') as f:
+                    pdf_output = f.read()
+                response = make_response(pdf_output)
+                response.headers['Content-Type'] = 'application/pdf'
+                response.headers['Content-Disposition'] = 'inline; filename=chromium_test.pdf'
+                return response
+            else:
+                return f"Chromium fail: {res.stderr}\n{res.stdout}"
 
     except Exception as e:
         import traceback
