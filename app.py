@@ -776,67 +776,87 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Generovanie PDF cez pdfkit (wkhtmltopdf) - EXTRÉMNE ROBUSTNÉ VYHĽADÁVANIE
+    # --- HLBKOVÁ ANALYZA: STABILNÉ PDF GENERÁTOR ---
+    # Používame kombináciu pdfkit (wkhtmltopdf) a xhtml2pdf ako poistku.
+    # Cesty smerujeme na stabilný Nix Profile.
     try:
-        import pdfkit
         import os
         import shutil
         import subprocess
         
-        wk_path = None
-        xvfb_prefix = ""
+        # 1. Definícia STABILNÝCH ciest (Nix Authority)
+        # Tieto cesty sú v Railway Nixpacks garantované.
+        NIX_BIN = "/nix/var/nix/profiles/default/bin"
+        wk_path = os.path.join(NIX_BIN, "wkhtmltopdf")
+        xvfb_path = os.path.join(NIX_BIN, "xvfb-run")
         
-        # 1. HLADANIE BINARKY (Viacúrovňové)
-        # Pokus A: Naša lokálna binárka zo symlinku v builde
-        local_bin = os.path.join(os.getcwd(), 'bin', 'wkhtmltopdf')
-        local_xvfb = os.path.join(os.getcwd(), 'bin', 'xvfb-run')
-        
-        if os.path.exists(local_bin):
-            wk_path = local_bin
-            if os.path.exists(local_xvfb):
-                xvfb_prefix = f"{local_xvfb} -a "
-        else:
-            # Pokus B: Systémový PATH
+        # Fallback pre lokálny vývoj alebo iné prostredie
+        if not os.path.exists(wk_path):
             wk_path = shutil.which('wkhtmltopdf')
+        if not (xvfb_path and os.path.exists(xvfb_path)):
             xvfb_path = shutil.which('xvfb-run')
-            if xvfb_path:
-                xvfb_prefix = f"{xvfb_path} -a "
 
-        # Pokus C: Natvrdo Railway Nix store (ak vieme cestu alebo find)
-        if not wk_path:
+        # --- ENGINE 1: PDFKIT (Najvyššia kvalita) ---
+        try:
+            import pdfkit
+            app.logger.info(f"Trying Engine 1 (pdfkit) with binary: {wk_path}")
+            
+            if not (wk_path and os.path.exists(wk_path)):
+                # Ak binárka nie je na stabilnej ceste, skúsime "find" ako poslednú záchranu
+                try:
+                    res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], 
+                                       capture_output=True, text=True, timeout=5)
+                    if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
+                except: pass
+
+            if not (wk_path and os.path.exists(wk_path)):
+                raise Exception("Binary wkhtmltopdf not found in any stable path.")
+
+            # Prefix pre xvfb ak sme na Linuxe
+            config_cmd = wk_path
+            if xvfb_path and os.path.exists(xvfb_path) and os.name != 'nt':
+                config_cmd = f"{xvfb_path} -a {wk_path}"
+            
+            config = pdfkit.configuration(wkhtmltopdf=config_cmd)
+            options = {
+                'page-size': 'A4',
+                'orientation': 'Portrait',
+                'margin-top': '10', 'margin-right': '10', 'margin-bottom': '10', 'margin-left': '10',
+                'encoding': "UTF-8", 'no-outline': None, 'quiet': ''
+            }
+            
+            pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+            return pdf_data, "application/pdf", True
+
+        except Exception as e1:
+            app.logger.warning(f"Engine 1 (pdfkit) failed: {str(e1)}")
+            
+            # --- ENGINE 2: xhtml2pdf (Garantovaná poistka) ---
             try:
-                res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], 
-                                   capture_output=True, text=True, timeout=5)
-                if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
-            except: pass
-
-        if not wk_path:
-            raise Exception("wkhtmltopdf binary not found. Path searched including bin/ and PATH.")
-
-        # 2. KONFIGURÁCIA
-        app.logger.info(f"Using PDF Engine: {xvfb_prefix}{wk_path}")
-        config = pdfkit.configuration(wkhtmltopdf=f"{xvfb_prefix}{wk_path}")
-
-        options = {
-            'page-size': 'A4',
-            'orientation': 'Portrait',
-            'margin-top': '0',
-            'margin-right': '0',
-            'margin-bottom': '0',
-            'margin-left': '0',
-            'encoding': "UTF-8",
-            'no-outline': None,
-            'quiet': ''
-        }
-        
-        # 3. GENEROVANIE
-        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
-        return pdf_data, "application/pdf", True
+                from xhtml2pdf import pisa
+                import io
+                app.logger.info("Falling back to Engine 2 (xhtml2pdf - Pure Python)")
                 
-    except Exception as e:
-        app.logger.error(f"PDF generation failed: {str(e)}")
-        # Ak zlyhá všetko, vrátime aspoň HTML verziu s oznamom o chybe
-        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
+                result_file = io.BytesIO()
+                pisa_status = pisa.CreatePDF(
+                    io.BytesIO(html.encode('utf-8')),
+                    dest=result_file,
+                    encoding='utf-8'
+                )
+                
+                if not pisa_status.err:
+                    return result_file.getvalue(), "application/pdf", True
+                else:
+                    raise Exception(f"xhtml2pdf error: {pisa_status.err}")
+                    
+            except Exception as e2:
+                app.logger.error(f"Engine 2 (xhtml2pdf) also failed: {str(e2)}")
+                raise Exception("Both PDF engines failed (Engine 1 error: " + str(e1) + ")")
+
+    except Exception as final_err:
+        app.logger.error(f"CRITICAL PDF FAILURE: {str(final_err)}")
+        # Ak zlyhá všetko, aspoň vrátime HTML s chybou (užívateľ si to vie stiahnuť/vytlačiť manuálne)
+        return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(final_err)}"
 
 @app.route('/debug/pdf-test')
 @login_required
@@ -848,38 +868,58 @@ def debug_pdf_test():
     try:
         import os
         import shutil
-        import subprocess
+        import pdfkit
+        from xhtml2pdf import pisa
+        import io
         
-        local_bin = os.path.join(os.getcwd(), 'bin', 'wkhtmltopdf')
-        local_xvfb = os.path.join(os.getcwd(), 'bin', 'xvfb-run')
+        NIX_PROFILE = "/nix/var/nix/profiles/default"
+        wk_path = os.path.join(NIX_PROFILE, "bin/wkhtmltopdf")
         
-        results = {
-            "Local bin/ folder exists": os.path.exists('bin'),
-            "Local wkhtmltopdf exists": os.path.exists(local_bin),
-            "Local xvfb-run exists": os.path.exists(local_xvfb),
-            "System wkhtmltopdf (which)": shutil.which('wkhtmltopdf'),
-            "System xvfb-run (which)": shutil.which('xvfb-run'),
-            "Current CWD": os.getcwd()
+        diag = {
+            "Nix Profile exists": os.path.exists(NIX_PROFILE),
+            "Nix wkhtmltopdf exists": os.path.exists(wk_path),
+            "Captured PATH": os.environ.get('PATH'),
+            "Captured LD_LIBRARY_PATH": os.environ.get('LD_LIBRARY_PATH')
         }
         
-        html_diag = f"""
+        test_results = {}
+        
+        # Test Engine 1: pdfkit
+        try:
+            config = pdfkit.configuration(wkhtmltopdf=wk_path if os.path.exists(wk_path) else shutil.which('wkhtmltopdf'))
+            pdfkit.from_string("<h1>Test Engine 1</h1>", False, configuration=config)
+            test_results["Engine 1 (pdfkit)"] = "SUCCESS ✅"
+        except Exception as e:
+            test_results["Engine 1 (pdfkit)"] = f"FAILED ❌ ({str(e)})"
+            
+        # Test Engine 2: xhtml2pdf
+        try:
+            pisa.CreatePDF(io.BytesIO(b"<h1>Test Engine 2</h1>"), dest=io.BytesIO())
+            test_results["Engine 2 (xhtml2pdf)"] = "SUCCESS ✅"
+        except Exception as e:
+            test_results["Engine 2 (xhtml2pdf)"] = f"FAILED ❌ ({str(e)})"
+
+        html_out = f"""
         <html>
             <body style="font-family: sans-serif; padding: 40px; line-height: 1.6;">
-                <h1 style="color: #1e40af;">PDF Binary Diagnostics (Final) 🛠️</h1>
+                <h1 style="color: #1e40af;">Definitive PDF Diagnostics 🛠️</h1>
+                <h2>Environment:</h2>
                 <ul>
-                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in results.items()])}
+                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in diag.items()])}
                 </ul>
                 <hr>
-                <p>Ak vidíte "Local wkhtmltopdf exists: True", tak PDF už na 100% pôjde.</p>
-                <p>Ak sú všetky False, skúsime nájsť binárku v /nix/store cez find...</p>
+                <h2>Engine Tests:</h2>
+                <ul>
+                    {"".join([f"<li><b>{k}:</b> {v}</li>" for k,v in test_results.items()])}
+                </ul>
             </body>
         </html>
         """
-        return html_diag
+        return html_out
 
     except Exception as e:
         import traceback
-        return f"<h1>Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
+        return f"<h1>Global Debug Failure</h1><pre>{traceback.format_exc()}</pre>", 500
 
     except Exception as e:
         import traceback

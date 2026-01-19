@@ -1,21 +1,34 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "wkhtmltopdf", "xvfb", "xorg.libX11", "xorg.libXrender", "xorg.libXext", "fontconfig", "dejavu_fonts"]
+# Balíky ktoré vytvoria stabilné prostredie v /nix/var/nix/profiles/default
+nixPkgs = [
+    "python311",
+    "gcc",
+    "pkg-config",
+    "cairo",
+    "pango",
+    "glib",
+    "libffi",
+    "wkhtmltopdf",
+    "xvfb",
+    "fontconfig",
+    "dejavu_fonts",
+    "postgresql"
+]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-[phases.build]
+# Nastavenie ciest aby pip vedel skompilovať balíky (napr. pycairo)
 cmds = [
-    "mkdir -p bin",
-    "ln -sf $(which wkhtmltopdf) bin/wkhtmltopdf",
-    "ln -sf $(which xvfb-run) bin/xvfb-run",
-    "echo '#!/bin/bash' > bin/pdf_wrapper.sh",
-    "echo '$(which xvfb-run) -a $(which wkhtmltopdf) \"$@\"' >> bin/pdf_wrapper.sh",
-    "chmod +x bin/pdf_wrapper.sh bin/wkhtmltopdf bin/xvfb-run"
+    "export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/nix/var/nix/profiles/default/lib/pkgconfig",
+    "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/nix/var/nix/profiles/default/lib",
+    "pip install -r requirements.txt"
 ]
 
 [variables]
 PYTHONPATH = "."
+# Tieto cesty sú v Nixpacks STABILNÉ a prežijú reštart/deploy
+PATH = "/nix/var/nix/profiles/default/bin:$PATH"
+LD_LIBRARY_PATH = "/nix/var/nix/profiles/default/lib:$LD_LIBRARY_PATH"
+PKG_CONFIG_PATH = "/nix/var/nix/profiles/default/lib/pkgconfig:$PKG_CONFIG_PATH"
 
 [start]
 cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120"
