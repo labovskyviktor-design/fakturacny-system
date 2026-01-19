@@ -822,9 +822,27 @@ def _get_invoice_pdf_data(invoice):
             # Drastické odstránenie všetkého mimo ASCII (mäkčene, dĺžne)
             html = unicodedata.normalize('NFKD', html).encode('ascii', 'ignore').decode('ascii')
         
-        # 3. Vyčistíme HTML pre fpdf2 (nepodporuje zložité CSS)
+        # 3. Vyčistíme HTML pre fpdf2 (nepodporuje zložité CSS a vnorené bloky v tabuľkách)
+        # fpdf2-html padá na: Unsupported nested HTML tags inside <td> element: <div>
+        
+        # Najprv odstránime štýly a linky
         clean_html = re.sub(r'<style>.*?</style>', '', html, flags=re.DOTALL)
         clean_html = re.sub(r'<link.*?>', '', clean_html)
+        
+        # Nahradíme <div> za <p> alebo <span> podľa kontextu, 
+        # ale najbezpečnejšie pre fpdf2 je premeniť VŠETKY divy na p/br/span
+        # fpdf2-html nemá rád <div> a už vôbec nie vnorené v <td>
+        clean_html = clean_html.replace('<div>', '<p>').replace('</div>', '</p>')
+        
+        # Ak by v <td> ostal <p>, fpdf2 môže stále protestovať. 
+        # Odstránime <p> a </p> vnútri <td>
+        # Toto je brute-force riešenie pre maximálnu stabilitu.
+        def remove_tags_in_td(match):
+            content = match.group(1)
+            content = content.replace('<p>', '').replace('</p>', '<br>')
+            return f'<td>{content}</td>'
+        
+        clean_html = re.sub(r'<td>(.*?)</td>', remove_tags_in_td, clean_html, flags=re.DOTALL)
         
         # fpdf2-html vyžaduje veľmi jednoduché značky
         pdf.write_html(clean_html)

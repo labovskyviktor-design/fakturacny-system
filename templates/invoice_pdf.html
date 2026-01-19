@@ -442,15 +442,15 @@
         <table style="width: 100%; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #1e40af;">
             <tr>
                 <td style="vertical-align: top;">
-                    <div class="invoice-title">FAKTÚRA</div>
-                    <div class="invoice-number">č. {{ invoice.invoice_number }}</div>
+                    <b style="font-size: 28pt; color: #1e40af;">FAKTÚRA</b><br>
+                    <span style="font-size: 12pt; color: #666;">č. {{ invoice.invoice_number }}</span>
                 </td>
                 <td style="vertical-align: top; text-align: right;">
-                    <div class="company-name">{{ invoice.supplier.name }}</div>
-                    <div style="font-size: 8.5pt; color: #666; margin-top: 3px;">
+                    <b style="font-size: 14pt; color: #333;">{{ invoice.supplier.name }}</b><br>
+                    <span style="font-size: 8.5pt; color: #666;">
                         {{ invoice.supplier.street }}<br>
                         {{ invoice.supplier.zip_code }} {{ invoice.supplier.city }}
-                    </div>
+                    </span>
                 </td>
             </tr>
         </table>
@@ -525,9 +525,9 @@
                 {% for item in invoice.items %}
                 <tr>
                     <td>
-                        <div class="item-name">{{ item.description }}</div>
-                        {% if item.item_note %}
-                        <div class="item-note">{{ item.item_note }}</div>
+                        <b class="item-name">{{ item.description }}</b>
+                        {% if item.item_note %}<br>
+                        <span class="item-note">{{ item.item_note }}</span>
                         {% endif %}
                     </td>
                     <td>{{ item.quantity }}</td>
