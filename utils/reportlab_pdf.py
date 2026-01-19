@@ -193,6 +193,47 @@ class InvoicePDF:
         ]))
         return t
 
+    def _create_items_table(self):
+        """Modern Striped Items Table"""
+        headers = ["Popis položky/Služby", "Množstvo", "MJ", "Cena za j.", "Spolu"]
+        data = [[Paragraph(h, ParagraphStyle('Header', parent=self.style_label, textColor=colors.white)) for h in headers]]
+        
+        for i, item in enumerate(self.invoice.items):
+            desc = item.description
+            if item.item_note:
+                desc += f"<br/><font size=7 color='#64748b'>{item.item_note}</font>"
+            
+            row = [
+                Paragraph(desc, self.style_normal),
+                f"{item.quantity}",
+                item.unit,
+                format_currency(item.unit_price),
+                format_currency(item.total)
+            ]
+            data.append(row)
+            
+        t = Table(data, colWidths=[8.5*cm, 2.5*cm, 1.5*cm, 3*cm, 3.5*cm], repeatRows=1)
+        
+        # Zebra Striping
+        styles = [
+            ('BACKGROUND', (0,0), (-1,0), self.c_primary), # Header Bg
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('ALIGN', (0,0), (-1,0), 'LEFT'),
+            ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LINEBELOW', (0,0), (-1,-1), 0.5, self.c_bg_light),
+        ]
+        
+        # Add alternating background
+        for i in range(1, len(data)):
+            if i % 2 == 0:
+                styles.append(('BACKGROUND', (0,i), (-1,i), self.c_bg_light))
+                
+        t.setStyle(TableStyle(styles))
+        return t
+
     def _create_footer_section(self):
         """Reference Style Footer: QR Left, Totals Right (Big)"""
         
