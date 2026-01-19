@@ -782,19 +782,50 @@ def _get_invoice_pdf_data(invoice):
         import tempfile
         import os
         import shutil
+        import glob
         
-        # 1. Hľadáme Chromium binárku
-        chrome_path = os.environ.get('CHROME_PATH') or shutil.which('chromium') or shutil.which('google-chrome') or shutil.which('google-chrome-stable')
+        # 1. Hľadáme Chromium binárku - agresívnejšie hľadanie pre Railway/Nix
+        chrome_path = os.environ.get('CHROME_PATH')
         
         if not chrome_path:
-            # Skúsime bežné cesty na Railway (Nix)
-            for p in ["/usr/bin/chromium", "/usr/bin/google-chrome", "/opt/google/chrome/chrome"]:
-                if os.path.exists(p):
-                    chrome_path = p
+            # Skúsime bežné názvy v PATH
+            for name in ['chromium-browser', 'chromium', 'google-chrome-stable', 'google-chrome']:
+                found = shutil.which(name)
+                if found:
+                    chrome_path = found
                     break
         
         if not chrome_path:
-            raise Exception("Chromium binary not found. Please ensure chromium is installed.")
+            # Skúsime hardkódované cesty aj Nix store vzory
+            potential_patterns = [
+                "/usr/bin/chromium*",
+                "/usr/bin/google-chrome*",
+                "/nix/store/*/bin/chromium",
+                "/nix/store/*/bin/google-chrome"
+            ]
+            for pattern in potential_patterns:
+                matches = glob.glob(pattern)
+                if matches:
+                    # Vyberieme prvý spustiteľný súbor
+                    for match in matches:
+                        if os.path.isfile(match) and os.access(match, os.X_OK):
+                            chrome_path = match
+                            break
+                if chrome_path: break
+        
+        if not chrome_path:
+            # Posledný pokus: Spustíme 'find' ak sme na linuxe
+            try:
+                if os.name != 'nt':
+                    find_res = subprocess.run(['find', '/usr/bin', '/nix/store', '-name', 'chromium', '-type', 'f', '-executable'], 
+                                           capture_output=True, text=True, timeout=5)
+                    if find_res.stdout:
+                        chrome_path = find_res.stdout.splitlines()[0]
+            except: pass
+
+        if not chrome_path:
+            app.logger.error("All Chromium search methods failed.")
+            raise Exception("Chromium binary not found. Path searched: PATH, /usr/bin, /nix/store. Please set CHROME_PATH env var.")
             
         app.logger.info(f"Using Chromium for PDF: {chrome_path}")
         
@@ -807,7 +838,6 @@ def _get_invoice_pdf_data(invoice):
                 f.write(html)
             
             # 3. Spustíme Chromium pre "Print to PDF"
-            # Parametery sú vyladené pre headless prostredie a A4 portrait
             cmd = [
                 chrome_path,
                 '--headless',
@@ -816,9 +846,13 @@ def _get_invoice_pdf_data(invoice):
                 '--disable-dev-shm-usage',
                 '--print-to-pdf=' + pdf_file,
                 '--no-pdf-header-footer',
+                '--no-margins',
+                '--paper-width=8.27',
+                '--paper-height=11.69',
                 html_file
             ]
             
+            app.logger.info(f"Executing: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0 and os.path.exists(pdf_file):
@@ -827,7 +861,8 @@ def _get_invoice_pdf_data(invoice):
                 return pdf_data, "application/pdf", True
             else:
                 error = result.stderr or result.stdout or "Unknown Chromium error"
-                raise Exception(f"Chromium failed: {error}")
+                app.logger.error(f"Chromium output: {error}")
+                raise Exception(f"Chromium failed (code {result.returncode}): {error}")
                 
     except Exception as e:
         app.logger.error(f"Chromium PDF generation failed: {str(e)}")
@@ -846,46 +881,59 @@ def debug_pdf_test():
         import tempfile
         import os
         import shutil
+        import glob
         
-        # Diagnostics
-        chrome_path = os.environ.get('CHROME_PATH') or shutil.which('chromium') or shutil.which('google-chrome')
+        # Super-deep diagnostics
+        paths_to_check = ["/usr/bin", "/usr/local/bin", "/opt", "/nix/store"]
+        found_binaries = []
+        for p in paths_to_check:
+            try:
+                # Len ak cesta existuje
+                if os.path.exists(p):
+                    # Hľadáme čokoľvek čo vyzerá ako chrome/chromium
+                    found_binaries.extend(glob.glob(os.path.join(p, "*chrome*")))
+                    found_binaries.extend(glob.glob(os.path.join(p, "*chromium*")))
+                    # Ak je to nix store, musíme ísť hlbšie
+                    if "nix/store" in p:
+                        found_binaries.extend(glob.glob(os.path.join(p, "*/bin/*chromium*")))
+            except: pass
+
         diag = {
-            "CHROME_PATH": chrome_path,
+            "CHROME_PATH_ENV": os.environ.get('CHROME_PATH', 'NOT SET'),
             "PATH": os.environ.get('PATH', ''),
-            "CWD": os.getcwd()
+            "FOUND_POTENTIAL_BINARIES": found_binaries[:20],  # Limit to 20
+            "WHICH_CHROMIUM": shutil.which('chromium'),
+            "WHICH_GOOGLE_CHROME": shutil.which('google-chrome')
         }
         
-        html_content = f"""
-        <html>
-            <head><meta charset="UTF-8"></head>
-            <body>
-                <h1>Chromium PDF Diagnostics</h1>
-                <pre>{str(diag)}</pre>
-                <p>Ak toto vidíte ako PDF, Chromium funguje!</p>
-            </body>
-        </html>
-        """
+        # Try to find the best one
+        chrome_path = None
+        for b in found_binaries:
+            if os.path.isfile(b) and os.access(b, os.X_OK):
+                chrome_path = b
+                break
         
+        diag["SELECTED_CHROME_PATH"] = chrome_path
+
         if not chrome_path:
-            return f"Chromium nenájdený! Diag: {diag}"
+            return f"<h1>Chromium not found during deep search</h1><pre>{str(diag)}</pre>"
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             pdf_file = os.path.join(tmp_dir, 'test.pdf')
             html_file = os.path.join(tmp_dir, 'test.html')
-            with open(html_file, 'w') as f: f.write(html_content)
+            with open(html_file, 'w') as f: f.write(f"<h1>Success!</h1><p>Chromium found at: {chrome_path}</p><pre>{str(diag)}</pre>")
             
-            cmd = [chrome_path, '--headless', '--no-sandbox', '--disable-gpu', '--print-to-pdf=' + pdf_file, html_file]
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            cmd = [chrome_path, '--headless', '--no-sandbox', '--disable-gpu', '--print-to-pdf=' + pdf_file, '--no-pdf-header-footer', html_file]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if os.path.exists(pdf_file):
                 with open(pdf_file, 'rb') as f:
                     pdf_output = f.read()
                 response = make_response(pdf_output)
                 response.headers['Content-Type'] = 'application/pdf'
-                response.headers['Content-Disposition'] = 'inline; filename=chromium_test.pdf'
                 return response
             else:
-                return f"Chromium fail: {res.stderr}\n{res.stdout}"
+                return f"<h1>Chromium execution failed</h1><pre>CMD: {' '.join(cmd)}\nEXIT: {res.returncode}\nSTDERR: {res.stderr}\nSTDOUT: {res.stdout}\nDIAG: {str(diag)}</pre>"
 
     except Exception as e:
         import traceback
