@@ -1,6 +1,6 @@
 # Railway Nixpacks konfigurácia
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "glib", "nss", "nspr", "atk", "at-spi2-atk", "cups", "libdrm", "dbus", "libxcb", "libXcomposite", "libXdamage", "libXext", "libXfixes", "libXrandr", "mesa", "gbm", "alsa-lib"]
+nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
 
 [variables]
 PYTHONPATH = ".:$PYTHONPATH"

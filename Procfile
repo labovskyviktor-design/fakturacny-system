@@ -1,1 +1,1 @@
-web: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120 --log-level debug --capture-output --enable-stdio-inheritance
+web: export CHROME_PATH=$(find /nix/store -name chromium -type f -executable | head -n 1) && gunicorn app:app
