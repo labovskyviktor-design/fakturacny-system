@@ -46,29 +46,30 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     buffer = io.BytesIO()
     
     # Register UTF-8 font for Slovak characters
-    # Using Helvetica with proper encoding
-    from reportlab.pdfbase.pdfmetrics import registerFont, registerFontFamily
+    # Using bundled DejaVu Sans which supports full CE character set
+    from reportlab.pdfbase.pdfmetrics import registerFont
     from reportlab.pdfbase.ttfonts import TTFont
     
-    # Try to use DejaVu Sans (supports Slovak characters)
     try:
-        # On most systems, DejaVu Sans is available
-        font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'
-        if not os.path.exists(font_path):
-            # Try alternative paths
-            font_path = '/usr/share/fonts/dejavu/DejaVuSans.ttf'
+        # Path to bundled fonts
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        font_dir = os.path.join(base_dir, 'fonts')
         
-        if os.path.exists(font_path):
-            registerFont(TTFont('DejaVu', font_path))
-            registerFont(TTFont('DejaVu-Bold', font_path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')))
+        regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
+        bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
+        
+        if os.path.exists(regular_font) and os.path.exists(bold_font):
+            registerFont(TTFont('DejaVu', regular_font))
+            registerFont(TTFont('DejaVu-Bold', bold_font))
             font_name = 'DejaVu'
             font_bold = 'DejaVu-Bold'
         else:
-            # Fallback to Helvetica with UTF-8 encoding
+            # Fallback only if files are missing (should not happen if deployed correctly)
+            print(f"Warning: Fonts not found in {font_dir}")
             font_name = 'Helvetica'
             font_bold = 'Helvetica-Bold'
-    except:
-        # Fallback to Helvetica
+    except Exception as e:
+        print(f"Font loading error: {e}")
         font_name = 'Helvetica'
         font_bold = 'Helvetica-Bold'
     
