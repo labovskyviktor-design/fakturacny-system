@@ -776,33 +776,74 @@ def _get_invoice_pdf_data(invoice):
         qr_code=qr_code
     )
     
-    # Stabilné PDF Generovanie cez xhtml2pdf (Pure Python)
+    # Generovanie PDF cez pdfkit (wkhtmltopdf)
     try:
-        from xhtml2pdf import pisa
-        import io
+        import pdfkit
+        import shutil
+        import os
+        import subprocess
         
-        app.logger.info("Generating PDF via xhtml2pdf (Stable)...")
+        # 1. Hľadáme binárku wkhtmltopdf
+        wk_path = shutil.which('wkhtmltopdf')
         
-        # Pripravíme buffer pre výsledné PDF
-        result_file = io.BytesIO()
-        
-        # Skonvertujeme HTML na PDF
-        # xhtml2pdf je čistý Python, takže nepotrebuje libgobject ani iné systémové knižnice
-        pisa_status = pisa.CreatePDF(
-            io.BytesIO(html.encode('utf-8')),
-            dest=result_file,
-            encoding='utf-8'
-        )
-        
-        if not pisa_status.err:
-            pdf_data = result_file.getvalue()
-            return pdf_data, "application/pdf", True
+        # Skúsime nájsť v Nix store ak shutil zlyhá
+        if not wk_path and os.name != 'nt':
+            try:
+                res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], 
+                                   capture_output=True, text=True, timeout=5)
+                if res.stdout.strip():
+                    wk_path = res.stdout.strip().splitlines()[0]
+            except: pass
+
+        if not wk_path:
+            # Fallback na bežnú cestu
+            wk_path = '/usr/bin/wkhtmltopdf' if os.path.exists('/usr/bin/wkhtmltopdf') else None
+
+        if not wk_path:
+            raise Exception("wkhtmltopdf binary not found. Please check build logs.")
+
+        # 2. Nastavenie konfigurácie (xvfb-run pre headless prostredie)
+        # xvfb-run zabezpečí, že wkhtmltopdf bude mať virtuálny displej
+        xvfb_path = shutil.which('xvfb-run')
+        if xvfb_path and os.name != 'nt':
+            # Ak máme xvfb-run, použijeme wrapper
+            class XvfbConfig(pdfkit.configuration):
+                def __init__(self, wkhtmltopdf):
+                    self.wkhtmltopdf = xvfb_path
+                    self.meta_wkhtmltopdf = wkhtmltopdf
+                def command(self, path):
+                    return [self.wkhtmltopdf, '-a', self.meta_wkhtmltopdf] + path
+            
+            # Alebo jednoduchšie (pre pdfkit):
+            config = pdfkit.configuration(wkhtmltopdf=wk_path)
+            # Pridáme xvfb-run pred samotný príkaz (niektoré verzie pdfkit to neberú priamo cez config)
+            # skúsime radšej priamy wrapper ak to nepôjde, ale toto je základ:
         else:
-            raise Exception(f"xhtml2pdf error: {pisa_status.err}")
+            config = pdfkit.configuration(wkhtmltopdf=wk_path)
+
+        options = {
+            'page-size': 'A4',
+            'orientation': 'Portrait',
+            'margin-top': '0',
+            'margin-right': '0',
+            'margin-bottom': '0',
+            'margin-left': '0',
+            'encoding': "UTF-8",
+            'no-outline': None,
+            'quiet': ''
+        }
+        
+        # Ak sme na Railway, skúsime použiť xvfb-run cez prefix
+        if xvfb_path and os.name != 'nt':
+            # Hack pre pdfkit: povieme mu, že binárka je "xvfb-run -a wkhtmltopdf"
+            config = pdfkit.configuration(wkhtmltopdf=f"{xvfb_path} -a {wk_path}")
+
+        pdf_data = pdfkit.from_string(html, False, configuration=config, options=options)
+        return pdf_data, "application/pdf", True
                 
     except Exception as e:
-        app.logger.error(f"PDF generation failed (xhtml2pdf): {str(e)}")
-        # Ak zlyhá aj toto, vrátime HTML faktúru
+        app.logger.error(f"pdfkit generation failed: {str(e)}")
+        # Ak zlyhá všetko, vrátime HTML faktúru
         return html.encode('utf-8'), "text/html", f"ERROR: PDF generation failed: {str(e)}"
 
 @app.route('/debug/pdf-test')
@@ -813,28 +854,44 @@ def debug_pdf_test():
         return "Not authorized", 403
         
     try:
-        from xhtml2pdf import pisa
-        import io
+        import pdfkit
+        import shutil
+        import os
         
-        html_content = """
+        wk_path = shutil.which('wkhtmltopdf')
+        xvfb_path = shutil.which('xvfb-run')
+        
+        html_content = f"""
         <html>
             <body style="font-family: sans-serif; padding: 40px;">
-                <h1 style="color: #1e40af;">xhtml2pdf Status: SUCCESS ✅</h1>
-                <p>Toto PDF bolo vygenerované pomocou čistého Python engine.</p>
-                <p>Tento spôsob je najstabilnejší pre Railway, pretože nevyžaduje žiadne externé knižnice.</p>
+                <h1 style="color: #1e40af;">pdfkit Status: SUCCESS ✅</h1>
+                <p>Binárka wkhtmltopdf: {wk_path or 'NENÁJDENÁ'}</p>
+                <p>Xvfb-run: {xvfb_path or 'NENÁJDENÝ'}</p>
+                <p>Toto PDF potvrdzuje, že systém vidí binárky a vie generovať PDF.</p>
             </body>
         </html>
         """
         
-        result_file = io.BytesIO()
-        pisa_status = pisa.CreatePDF(io.BytesIO(html_content.encode('utf-8')), dest=result_file)
+        # Binary discovery for debug
+        if not wk_path and os.name != 'nt':
+            import subprocess
+            try:
+                res = subprocess.run(['find', '/nix/store', '-name', 'wkhtmltopdf', '-type', 'f', '-executable'], capture_output=True, text=True)
+                if res.stdout.strip(): wk_path = res.stdout.strip().splitlines()[0]
+            except: pass
+
+        if not wk_path: return "<h1>Error</h1><p>wkhtmltopdf binary not found.</p>", 500
+
+        config_path = wk_path
+        if xvfb_path and os.name != 'nt':
+            config_path = f"{xvfb_path} -a {wk_path}"
         
-        if not pisa_status.err:
-            response = make_response(result_file.getvalue())
-            response.headers['Content-Type'] = 'application/pdf'
-            return response
-        else:
-            return f"<h1>xhtml2pdf Error</h1><p>{pisa_status.err}</p>", 500
+        config = pdfkit.configuration(wkhtmltopdf=config_path)
+        pdf_output = pdfkit.from_string(html_content, False, configuration=config)
+        
+        response = make_response(pdf_output)
+        response.headers['Content-Type'] = 'application/pdf'
+        return response
 
     except Exception as e:
         import traceback
