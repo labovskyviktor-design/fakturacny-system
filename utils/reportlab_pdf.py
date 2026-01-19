@@ -187,9 +187,11 @@ class InvoicePDF:
             ('LEFTPADDING', (0,0), (0,0), 0),    # Left col padding
             ('RIGHTPADDING', (0,0), (0,0), 10),
             ('LEFTPADDING', (1,0), (1,0), 10),   # Right col padding
+            ('LEFTPADDING', (1,0), (1,0), 10),   # Right col padding
             ('RIGHTPADDING', (1,0), (1,0), 0),
-            # Vertical Separator (Solid for now to prevent crash)
-            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border), # Middle line
+            # Vertical Separator (Dotted)
+            # Syntax: (op, start, stop, weight, color, cap, dash)
+            ('LINEBEFORE', (1,0), (1,-1), 0.5, self.c_border, 1, (1,3)), 
         ]))
         return t
 
@@ -221,8 +223,10 @@ class InvoicePDF:
             ('ALIGN', (0,0), (-1,0), 'LEFT'),
             ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
             ('LINEBELOW', (0,0), (-1,-1), 0.5, self.c_bg_light),
         ]
         
@@ -251,7 +255,7 @@ class InvoicePDF:
                 img_data = self.qr_code_base64.split(',')[1] if ',' in self.qr_code_base64 else self.qr_code_base64
                 img_bytes = base64.b64decode(img_data)
                 # Ensure valid image
-                qr_img = PlatypusImage(io.BytesIO(img_bytes), width=3*cm, height=3*cm)
+                qr_img = PlatypusImage(io.BytesIO(img_bytes), width=3.5*cm, height=3.5*cm)
                 left_elements.append(qr_img)
                 left_elements.append(Paragraph("PAY by square", self.style_label))
              except: pass
@@ -267,12 +271,11 @@ class InvoicePDF:
                 sig_elements.append(stamp_img)
             except: pass
             
-        # Check for Signature (overlay or adjacent?) -> stacked for now
+        # Check for Signature
         if self.invoice.supplier.signature_image:
             try:
                 sig_data = self.invoice.supplier.signature_image.split(',')[1] if ',' in self.invoice.supplier.signature_image else self.invoice.supplier.signature_image
                 sig_bytes = base64.b64decode(sig_data)
-                # Signature often wider
                 sig_img = PlatypusImage(io.BytesIO(sig_bytes), width=4*cm, height=2*cm, kind='proportional')
                 sig_elements.append(sig_img)
             except: pass
@@ -282,25 +285,33 @@ class InvoicePDF:
 
 
         # --- RIGHT: Totals ---
-        total_p = Paragraph(f"{format_currency(self.invoice.total)}", ParagraphStyle('TotalBig', parent=self.style_bold, fontSize=18, textColor=colors.black, alignment=TA_RIGHT))
+        self.style_total_label = ParagraphStyle('TotalLabel', parent=self.style_normal, fontSize=9)
+        self.style_total_val = ParagraphStyle('TotalVal', parent=self.style_normal, fontSize=9, alignment=TA_RIGHT)
+        
+        total_p = Paragraph(f"{format_currency(self.invoice.total)}", ParagraphStyle('TotalBig', parent=self.style_bold, fontSize=16, textColor=self.c_primary, alignment=TA_RIGHT))
         
         totals_list = []
-        totals_list.append([Paragraph("Základ:", self.style_normal), format_currency(self.invoice.subtotal)])
-        if self.invoice.vat_rate > 0:
-             totals_list.append([Paragraph(f"DPH {int(self.invoice.vat_rate)}%:", self.style_normal), format_currency(self.invoice.vat_amount)])
-        totals_list.append([Paragraph("Celkom:", self.style_bold_big), total_p])
+        totals_list.append([Paragraph("Základ:", self.style_total_label), Paragraph(format_date_sk(self.invoice.subtotal).replace(' ', '') + ' €', self.style_total_val)]) # Fix currency formatting manually just here or use format_currency
+        # Actually format_currency returns string with €
+        totals_list.append([Paragraph("Základ:", self.style_total_label), Paragraph(format_currency(self.invoice.subtotal), self.style_total_val)])
 
-        totals_table = Table(totals_list, colWidths=[3*cm, 4*cm])
+        if self.invoice.vat_rate > 0:
+             totals_list.append([Paragraph(f"DPH {int(self.invoice.vat_rate)}%:", self.style_total_label), Paragraph(format_currency(self.invoice.vat_amount), self.style_total_val)])
+        
+        totals_list.append([Paragraph("Celkom k úhrade:", ParagraphStyle('B', parent=self.style_bold_big)), total_p])
+
+        totals_table = Table(totals_list, colWidths=[3.5*cm, 4.5*cm])
         totals_table.setStyle(TableStyle([
             ('ALIGN', (1,0), (1,-1), 'RIGHT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('LINEABOVE', (0,-1), (-1,-1), 1, self.c_border),
             ('TOPPADDING', (0,-1), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
         ]))
         
         # Assembly: 3 Columns [ QR | Signature/Stamp | Totals ]
         data = [[left_elements, sig_elements, totals_table]]
-        t = Table(data, colWidths=[6*cm, 6*cm, 7*cm])
+        t = Table(data, colWidths=[5.5*cm, 6.5*cm, 7*cm])
         t.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('ALIGN', (0,0), (0,-1), 'LEFT'),   # QR Left
@@ -308,6 +319,8 @@ class InvoicePDF:
             ('ALIGN', (2,0), (2,-1), 'RIGHT'),  # Totals Right
             ('LEFTPADDING', (0,0), (-1,-1), 0),
             ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            # Dotted separator only between QR and Sig? No, usually empty space.
+            # Let's keep it clean without vertical lines in footer, or just one
         ]))
         return t
 
