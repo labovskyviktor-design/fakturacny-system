@@ -50,28 +50,38 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     from reportlab.pdfbase.pdfmetrics import registerFont
     from reportlab.pdfbase.ttfonts import TTFont
     
+    font_name = 'Helvetica'
+    font_bold = 'Helvetica-Bold'
+    font_loading_error = None
+    
     try:
-        # Path to bundled fonts
+        # Path to bundled fonts - robust detection
+        # 1. Try relative to this file
         base_dir = os.path.dirname(os.path.abspath(__file__))
         font_dir = os.path.join(base_dir, 'fonts')
         
         regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
         bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
         
+        # 2. Check if files exist
+        if not os.path.exists(regular_font):
+             # Try going up one level (if utils is package)
+             font_dir = os.path.join(os.path.dirname(base_dir), 'utils', 'fonts')
+             regular_font = os.path.join(font_dir, 'DejaVuSans.ttf')
+             bold_font = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
+
         if os.path.exists(regular_font) and os.path.exists(bold_font):
             registerFont(TTFont('DejaVu', regular_font))
             registerFont(TTFont('DejaVu-Bold', bold_font))
             font_name = 'DejaVu'
             font_bold = 'DejaVu-Bold'
         else:
-            # Fallback only if files are missing (should not happen if deployed correctly)
-            print(f"Warning: Fonts not found in {font_dir}")
-            font_name = 'Helvetica'
-            font_bold = 'Helvetica-Bold'
+            font_loading_error = f"Fonts not found at: {regular_font}"
+            print(font_loading_error)
+            
     except Exception as e:
-        print(f"Font loading error: {e}")
-        font_name = 'Helvetica'
-        font_bold = 'Helvetica-Bold'
+        font_loading_error = f"Font error: {str(e)}"
+        print(font_loading_error)
     
     # Create canvas
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -90,6 +100,20 @@ def generate_invoice_pdf_reportlab(invoice, qr_code_base64=None):
     top_margin = height - 1.5 * cm
     
     y_position = top_margin
+
+    # Debug: Print font loading error if any
+    if font_loading_error:
+        c.setFont("Helvetica-Bold", 10)
+        c.setFillColor(colors.red)
+        c.drawString(left_margin, height - 20, f"DEBUG ERROR: {font_loading_error}")
+        # Draw path info
+        try:
+            current_path = os.path.abspath(__file__)
+            c.drawString(left_margin, height - 35, f"File path: {current_path}")
+            c.drawString(left_margin, height - 50, f"CWD: {os.getcwd()}")
+        except:
+            pass
+        y_position -= 40
     
     # === HEADER ===
     c.setStrokeColor(primary_blue)
