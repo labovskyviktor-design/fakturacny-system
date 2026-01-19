@@ -782,50 +782,23 @@ def _get_invoice_pdf_data(invoice):
         import tempfile
         import os
         import shutil
-        import glob
         
-        # 1. Hľadáme Chromium binárku - agresívnejšie hľadanie pre Railway/Nix
-        chrome_path = os.environ.get('CHROME_PATH')
+        # 1. Hľadáme Chromium binárku - prioritne symlink z buildu
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        chrome_path = os.path.join(base_dir, 'chromium-bin')
         
-        if not chrome_path:
-            # Skúsime bežné názvy v PATH
-            for name in ['chromium-browser', 'chromium', 'google-chrome-stable', 'google-chrome']:
-                found = shutil.which(name)
-                if found:
-                    chrome_path = found
+        if not os.path.exists(chrome_path):
+            chrome_path = os.environ.get('CHROME_PATH') or shutil.which('chromium') or shutil.which('google-chrome')
+        
+        if not (chrome_path and os.path.exists(chrome_path)):
+            # Ak stále nič, skúsime posledný zúfalý pokus v systéme
+            for p in ["/usr/bin/chromium", "/usr/bin/google-chrome"]:
+                if os.path.exists(p):
+                    chrome_path = p
                     break
         
         if not chrome_path:
-            # Skúsime hardkódované cesty aj Nix store vzory
-            potential_patterns = [
-                "/usr/bin/chromium*",
-                "/usr/bin/google-chrome*",
-                "/nix/store/*/bin/chromium",
-                "/nix/store/*/bin/google-chrome"
-            ]
-            for pattern in potential_patterns:
-                matches = glob.glob(pattern)
-                if matches:
-                    # Vyberieme prvý spustiteľný súbor
-                    for match in matches:
-                        if os.path.isfile(match) and os.access(match, os.X_OK):
-                            chrome_path = match
-                            break
-                if chrome_path: break
-        
-        if not chrome_path:
-            # Posledný pokus: Spustíme 'find' ak sme na linuxe
-            try:
-                if os.name != 'nt':
-                    find_res = subprocess.run(['find', '/usr/bin', '/nix/store', '-name', 'chromium', '-type', 'f', '-executable'], 
-                                           capture_output=True, text=True, timeout=5)
-                    if find_res.stdout:
-                        chrome_path = find_res.stdout.splitlines()[0]
-            except: pass
-
-        if not chrome_path:
-            app.logger.error("All Chromium search methods failed.")
-            raise Exception("Chromium binary not found. Path searched: PATH, /usr/bin, /nix/store. Please set CHROME_PATH env var.")
+            raise Exception("Chromium binary not found. Build symlink /app/chromium-bin is missing.")
             
         app.logger.info(f"Using Chromium for PDF: {chrome_path}")
         
@@ -852,7 +825,6 @@ def _get_invoice_pdf_data(invoice):
                 html_file
             ]
             
-            app.logger.info(f"Executing: {' '.join(cmd)}")
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0 and os.path.exists(pdf_file):
@@ -861,8 +833,7 @@ def _get_invoice_pdf_data(invoice):
                 return pdf_data, "application/pdf", True
             else:
                 error = result.stderr or result.stdout or "Unknown Chromium error"
-                app.logger.error(f"Chromium output: {error}")
-                raise Exception(f"Chromium failed (code {result.returncode}): {error}")
+                raise Exception(f"Chromium failed: {error}")
                 
     except Exception as e:
         app.logger.error(f"Chromium PDF generation failed: {str(e)}")

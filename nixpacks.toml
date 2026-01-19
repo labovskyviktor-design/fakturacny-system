@@ -1,9 +1,18 @@
-# Railway Nixpacks konfigurácia
 [phases.setup]
-nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
+nixPkgs = ["python311", "gcc", "postgresql", "dejavu_fonts", "fontconfig", "chromium", "wkhtmltopdf", "glib", "nss", "nspr", "atk", "at-spi2-atk", "libdrm", "dbus", "libxcb", "mesa", "gbm", "alsa-lib", "findutils"]
+
+[phases.build]
+cmds = [
+    "pip install -r requirements.txt",
+    "ln -sf $(which chromium || which google-chrome || echo '/usr/bin/chromium') chromium-bin",
+    "ln -sf $(which wkhtmltopdf || echo '/usr/bin/wkhtmltopdf') wkhtmltopdf-bin",
+    "chmod +x chromium-bin wkhtmltopdf-bin || true"
+]
 
 [variables]
 PYTHONPATH = ".:$PYTHONPATH"
+CHROME_PATH = "/app/chromium-bin"
+WKHTMLTOPDF_PATH = "/app/wkhtmltopdf-bin"
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
