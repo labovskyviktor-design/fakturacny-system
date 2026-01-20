@@ -131,6 +131,10 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user and user.check_password(password):
+            if not user.is_active:
+                flash('Váš účet ešte nie je aktívny. Skontrolujte si email a kliknite na aktivačný odkaz.', 'warning')
+                return render_template('auth/login.html')
+                
             login_user(user, remember=remember)
             next_page = request.args.get('next')
             flash(f'Vitajte, {user.name}!', 'success')
@@ -143,7 +147,7 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Registrácia nového používateľa"""
+    """Registrácia nového používateľa (s aktiváciou)"""
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
@@ -171,18 +175,108 @@ def register():
             flash('Používateľ s týmto emailom už existuje.', 'error')
             return render_template('auth/register.html')
         
-        # Vytvorenie používateľa
-        user = User(name=name, email=email, company_name=company_name)
+        # Vytvorenie používateľa - NEAKTÍVNY
+        user = User(name=name, email=email, company_name=company_name, is_active=False)
         user.set_password(password)
         db.session.add(user)
         db.session.commit()
         
-        # Prihlásime používateľa
-        login_user(user)
-        flash('Registrácia úspešná! Vitajte vo Fakturačnom systéme.', 'success')
-        return redirect(url_for('supplier_settings'))  # Presmerujeme na nastavenie firmy
+        # Odoslanie aktivačného emailu
+        from utils.email_service import send_activation_email
+        if send_activation_email(user):
+            flash('Registrácia bola úspešná. Na váš email sme poslali aktivačný odkaz. Skontrolujte si schránku (aj spam).', 'info')
+        else:
+            # Fallback pre dev/error
+            flash('Registrácia prebehla, ale nepodarilo sa odoslať email. Kontaktujte podporu.', 'warning')
+            
+        return redirect(url_for('login'))
     
     return render_template('auth/register.html')
+
+
+@app.route('/activate/<token>')
+def activate_account(token):
+    """Aktivácia účtu cez token"""
+    try:
+        from utils.tokens import TokenGenerator
+        email = TokenGenerator.confirm_token(token, salt='activate-account', expiration=86400) # 24h
+        
+        if not email:
+            flash('Aktivačný odkaz je neplatný alebo expiroval.', 'error')
+            return redirect(url_for('login'))
+        
+        user = User.query.filter_by(email=email).first_or_404()
+        
+        if user.is_active:
+            flash('Účet je už aktívny. Môžete sa prihlásiť.', 'info')
+        else:
+            user.is_active = True
+            db.session.commit()
+            flash('Váš účet bol úspešne aktivovaný! Môžete sa prihlásiť.', 'success')
+            
+        return redirect(url_for('login'))
+        
+    except Exception as e:
+        app.logger.error(f"Activation error: {e}")
+        flash('Došlo k chybe pri aktivácii.', 'error')
+        return redirect(url_for('login'))
+
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """Žiadosť o obnovu hesla"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            from utils.email_service import send_reset_email
+            if send_reset_email(user):
+                flash('Inštrukcie na obnovu hesla boli odoslané na váš email.', 'info')
+            else:
+                flash('Nepodarilo sa odoslať email. Skúste to neskôr.', 'error')
+        else:
+            # Security: Don't reveal if user exists, but for UX maybe specific msg? 
+            # Let's keep vague standard
+            flash('Ak účet existuje, inštrukcie boli odoslané.', 'info')
+            
+        return redirect(url_for('login'))
+        
+    return render_template('auth/forgot_password.html')
+
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password_token(token):
+    """Nastavenie nového hesla"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    from utils.tokens import TokenGenerator
+    email = TokenGenerator.confirm_token(token, salt='recover-key', expiration=3600) # 1h
+    
+    if not email:
+        flash('Link na obnovu hesla je neplatný alebo expiroval.', 'error')
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        
+        if len(password) < 6:
+            flash('Heslo musí mať aspoň 6 znakov.', 'error')
+        elif password != password_confirm:
+            flash('Heslá sa nezhodujú.', 'error')
+        else:
+            user = User.query.filter_by(email=email).first_or_404()
+            user.set_password(password)
+            db.session.commit()
+            flash('Vaše heslo bolo úspešne zmenené. Teraz sa môžete prihlásiť.', 'success')
+            return redirect(url_for('login'))
+            
+    return render_template('auth/reset_password.html', token=token)
 
 
 @app.route('/logout', methods=['GET', 'POST'])

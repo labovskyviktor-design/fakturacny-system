@@ -56,3 +56,48 @@ def send_email(subject, recipient, body, html_body=None, attachments=None):
         current_app.logger.error(f"Error preparing email for {recipient}: {e}")
         current_app.logger.error(traceback.format_exc())
         return False
+
+def send_activation_email(user):
+    """Odošle aktivačný email novému používateľovi"""
+    from flask import url_for
+    from utils.tokens import TokenGenerator
+    
+    token = TokenGenerator.generate_token(user.email, salt='activate-account')
+    confirm_url = url_for('activate_account', token=token, _external=True)
+    
+    subject = "Aktivácia účtu - Fakturačný Systém"
+    
+    body = f"""Dobrý deň {user.name},
+
+ďakujeme za registráciu vo Fakturačnom systéme.
+Pre aktiváciu vášho účtu kliknite na nasledujúci odkaz (platí 24 hodín):
+
+{confirm_url}
+
+Ak ste sa neregistrovali, ignorujte tento email.
+"""
+    
+    return send_email(subject, user.email, body)
+
+
+def send_reset_email(user):
+    """Odošle email pre obnovu zabudnutého hesla"""
+    from flask import url_for
+    from utils.tokens import TokenGenerator
+    
+    token = TokenGenerator.generate_token(user.email, salt='recover-key')
+    recover_url = url_for('reset_password_token', token=token, _external=True)
+    
+    subject = "Obnova hesla - Fakturačný Systém"
+    
+    body = f"""Dobrý deň,
+
+požiadali ste o obnovu hesla pre váš účet {user.email}.
+Pre nastavenie nového hesla kliknite na tento odkaz (platí 1 hodinu):
+
+{recover_url}
+
+Ak ste o zmenu nežiadali, ignorujte tento email.
+"""
+    
+    return send_email(subject, user.email, body)
