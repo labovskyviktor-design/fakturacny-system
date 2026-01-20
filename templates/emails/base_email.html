@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: none;
+            width: 100%;
+        }
+
+        table {
+            border-spacing: 0;
+        }
+
+        td {
+            padding: 0;
+        }
+
+        img {
+            border: 0;
+        }
+
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #f8fafc;
+            padding-bottom: 60px;
+        }
+
+        .main {
+            background-color: #ffffff;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 600px;
+            border-spacing: 0;
+            font-family: sans-serif;
+            color: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            padding: 30px 40px;
+            text-align: center;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .footer {
+            padding: 30px;
+            text-align: center;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 14px 30px;
+            margin: 20px 0;
+            background-color: #4f46e5;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 20px;
+            font-size: 24px;
+            color: #1e293b;
+        }
+
+        p {
+            margin: 0 0 16px;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #475569;
+        }
+
+        @media screen and (max-width: 600px) {
+            .content {
+                padding: 20px !important;
+            }
+
+            .header {
+                padding: 20px 20px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <center class="wrapper">
+        <table class="main" width="100%">
+            <!-- Header -->
+            <tr>
+                <td class="header">
+                    <h2 style="color: white; margin: 0; font-size: 24px;">FakturaSK</h2>
+                </td>
+            </tr>
+
+            <!-- Content -->
+            <tr>
+                <td class="content">
+                    {% block content %}{% endblock %}
+                </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+                <td class="footer">
+                    <p style="font-size: 12px; color: #94a3b8; margin-bottom: 5px;">
+                        &copy; 2026 FakturaSK. Všetky práva vyhradené.
+                    </p>
+                    <p style="font-size: 12px; color: #94a3b8;">
+                        Táto správa bola vygenerovaná automaticky.
+                    </p>
+                </td>
+            </tr>
+        </table>
+    </center>
+</body>
+
+</html>

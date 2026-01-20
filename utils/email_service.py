@@ -2,9 +2,10 @@
 Služba pre odosielanie emailov (SendGrid cez Flask-Mail)
 """
 from flask_mail import Mail, Message
-from flask import current_app, render_template_string
+from flask import current_app, render_template, render_template_string
 from threading import Thread
 import traceback
+import os
 
 mail = Mail()
 
@@ -14,24 +15,32 @@ def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
+            app.logger.info(f"Email sent successfully to: {msg.recipients}")
         except Exception as e:
-            app.logger.error(f"Failed to send email: {e}")
+            app.logger.error(f"Failed to send email to {msg.recipients}: {e}")
+            app.logger.error(traceback.format_exc())
 
 
-def send_email(subject, recipient, body, html_body=None, attachments=None):
+def send_email(subject, recipient, body=None, html_body=None, template=None, **kwargs):
     """
     Odošle email pomocou Flask-Mail
     
     Args:
         subject: Predmet emailu
         recipient: Email príjemcu (alebo list emailov)
-        body: Textová verzia emailu
-        html_body: HTML verzia emailu (voliteľné)
-        attachments: Zoznam príloh [('filename', 'mimetype', data)]
+        body: Textová verzia emailu (fallback)
+        html_body: HTML verzia emailu (priama)
+        template: Cesta k šablóne (napr. 'emails/activation.html')
+        **kwargs: Premenné do šablóny
     """
     try:
+        # Kontrola API kľúča
         if not current_app.config.get('MAIL_PASSWORD'):
-            current_app.logger.warning("Email not sent: SENDGRID_API_KEY is missing")
+            if current_app.config.get('DEBUG'):
+                current_app.logger.warning(f"Email simulation (missing API key): To={recipient}, Subject={subject}")
+                return True # V dev mode sa tvárime že prešlo
+            
+            current_app.logger.error("Email not sent: SENDGRID_API_KEY is missing")
             return False
 
         msg = Message(
@@ -39,17 +48,23 @@ def send_email(subject, recipient, body, html_body=None, attachments=None):
             sender=current_app.config['MAIL_DEFAULT_SENDER'],
             recipients=[recipient] if isinstance(recipient, str) else recipient
         )
-        msg.body = body
-        if html_body:
-            msg.html = html_body
-            
-        if attachments:
-            for filename, content_type, data in attachments:
-                msg.attach(filename, content_type, data)
         
+        # Renderovanie šablóny ak je zadaná
+        if template:
+            try:
+                msg.html = render_template(template, **kwargs)
+            except Exception as e:
+                current_app.logger.error(f"Error rendering values for email template: {e}")
+                # Fallback ak zlyhá render
+                msg.body = body or "Error rendering email."
+        elif html_body:
+            msg.html = html_body
+        else:
+            msg.body = body or ""
+
         # Odoslať v novom vlákne
         Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
-        current_app.logger.info(f"Email to {recipient} queued for sending (Subject: {subject})")
+        current_app.logger.info(f"Email to {recipient} queued. Subject: {subject}")
         return True
         
     except Exception as e:
@@ -65,19 +80,16 @@ def send_activation_email(user):
     token = TokenGenerator.generate_token(user.email, salt='activate-account')
     confirm_url = url_for('activate_account', token=token, _external=True)
     
-    subject = "Aktivácia účtu - Fakturačný Systém"
+    subject = "Aktivácia účtu - FakturaSK"
     
-    body = f"""Dobrý deň {user.name},
-
-ďakujeme za registráciu vo Fakturačnom systéme.
-Pre aktiváciu vášho účtu kliknite na nasledujúci odkaz (platí 24 hodín):
-
-{confirm_url}
-
-Ak ste sa neregistrovali, ignorujte tento email.
-"""
-    
-    return send_email(subject, user.email, body)
+    return send_email(
+        subject=subject, 
+        recipient=user.email,
+        template='emails/activation_email.html',
+        user=user,
+        confirm_url=confirm_url,
+        body=f"Pre aktiváciu kliknite na: {confirm_url}" # Fallback
+    )
 
 
 def send_reset_email(user):
@@ -88,16 +100,13 @@ def send_reset_email(user):
     token = TokenGenerator.generate_token(user.email, salt='recover-key')
     recover_url = url_for('reset_password_token', token=token, _external=True)
     
-    subject = "Obnova hesla - Fakturačný Systém"
+    subject = "Obnova hesla - FakturaSK"
     
-    body = f"""Dobrý deň,
-
-požiadali ste o obnovu hesla pre váš účet {user.email}.
-Pre nastavenie nového hesla kliknite na tento odkaz (platí 1 hodinu):
-
-{recover_url}
-
-Ak ste o zmenu nežiadali, ignorujte tento email.
-"""
-    
-    return send_email(subject, user.email, body)
+    return send_email(
+        subject=subject,
+        recipient=user.email,
+        template='emails/reset_password_email.html',
+        user=user,
+        recover_url=recover_url,
+        body=f"Pre obnovu hesla kliknite na: {recover_url}" # Fallback
+    )

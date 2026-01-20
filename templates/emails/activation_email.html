@@ -1,0 +1,21 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+<h1>Vitajte vo FakturaSK! 👋</h1>
+<p>Dobrý deň {{ user.name }},</p>
+
+<p>Ďakujeme za registráciu. Pre aktiváciu vášho účtu prosím kliknite na tlačidlo nižšie.</p>
+
+<div style="text-align: center;">
+    <a href="{{ confirm_url }}" class="button" style="color: white !important;">Aktivovať účet</a>
+</div>
+
+<p style="font-size: 14px; margin-top: 20px;">
+    Ak tlačidlo nefunguje, skopírujte tento odkaz do prehliadača:<br>
+    <a href="{{ confirm_url }}" style="color: #4f46e5; word-break: break-all;">{{ confirm_url }}</a>
+</p>
+
+<p style="margin-top: 30px; font-size: 14px; color: #94a3b8;">
+    Odkaz je platný 24 hodín. Ak ste sa neregistrovali, tento email ignorujte.
+</p>
+{% endblock %}
