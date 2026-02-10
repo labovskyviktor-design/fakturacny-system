@@ -1,0 +1,22 @@
+# Ignore local development files
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+instance/
+
+# Ignore migration scripts (not needed for Vercel)
+migrate_db.py
+verify_migration.py
+
+# Ignore local environment
+.env
+
+# Ignore documentation
+*.md
+!README.md
+
+# Ignore test files
+tests.py
+test_*.py
