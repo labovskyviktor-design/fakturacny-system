@@ -5,6 +5,7 @@ Klon systémov SuperFaktúra / Kros
 import os
 import io
 import csv
+import socket
 from datetime import date, timedelta
 from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, Response, jsonify
