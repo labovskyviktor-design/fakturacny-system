@@ -1,4 +1,4 @@
-from flask import Flask, make_response
+from flask import Flask, request
 import traceback
 import sys
 import os
@@ -6,52 +6,61 @@ import os
 # Add the current directory to python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-class LazyApp:
-    def __init__(self):
-        self.app = None
-        self.error = None
-        
-    def get_app(self):
-        if self.app:
-            return self.app
-            
-        if self.error:
-            return None
+app = Flask(__name__)
 
-        try:
-            # Attempt to import the real app
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def probe(path):
+    # Get step from query param, default to 0
+    # Usage: /?step=1, /?step=2, etc.
+    step = request.args.get('step', '0')
+    limit = int(step) if step.isdigit() else 0
+    
+    logs = [f"Probe Level {limit} started.", "----------------"]
+    
+    try:
+        # Step 0: Basic imports (already tested, but verify)
+        if limit >= 0:
+            logs.append("Step 0: Core libs...")
+            import psycopg2
+            import PIL
+            import reportlab
+            logs.append("OK.")
+            
+        # Step 1: Config
+        if limit >= 1:
+            logs.append("Step 1: Importing config...")
+            import config
+            logs.append("OK.")
+
+        # Step 2: Utils
+        if limit >= 2:
+            logs.append("Step 2: Importing utils...")
+            import utils.email_service
+            import utils.company_lookup
+            import utils.pay_by_square
+            logs.append("OK.")
+
+        # Step 3: Models
+        if limit >= 3:
+            logs.append("Step 3: Importing models...")
+            import models
+            logs.append("OK.")
+
+        # Step 4: Full App
+        if limit >= 4:
+            logs.append("Step 4: Importing app...")
             from app import app as real_app
-            self.app = real_app
-            return self.app
-        except Exception:
-            self.error = traceback.format_exc()
-            return None
-
-    def __call__(self, environ, start_response):
-        app = self.get_app()
-        
-        if app:
-            return app(environ, start_response)
-        else:
-            # Return error response
-            status = '500 Internal Server Error'
-            response_headers = [('Content-type', 'text/html')]
-            start_response(status, response_headers)
+            logs.append("OK. App object created.")
             
-            error_html = f"""
-            <!DOCTYPE html>
-            <html>
-                <head><title>Startup Error via LazyApp</title></head>
-                <body style="font-family: monospace; padding: 20px;">
-                    <h1 style="color: red;">Application Import Failed</h1>
-                    <p>The application failed to initialize at runtime.</p>
-                    <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; overflow: auto;">
-                        <pre>{self.error}</pre>
-                    </div>
-                </body>
-            </html>
-            """
-            return [error_html.encode('utf-8')]
+    except Exception as e:
+        logs.append(f"EXCEPTION CAUGHT: {e}")
+        logs.append(traceback.format_exc())
 
-# Export the lazy app as 'app' for Vercel
-app = LazyApp()
+    return f"""
+    <html>
+        <body style="font-family: monospace; white-space: pre-wrap;">
+{'<br>'.join(logs)}
+        </body>
+    </html>
+    """
