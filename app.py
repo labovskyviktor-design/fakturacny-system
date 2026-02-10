@@ -85,7 +85,13 @@ def internal_error(error):
     except Exception as e:
         app.logger.error(f'Rollback failed: {e}')
         
-    return render_template('500.html'), 500
+    # Pass error details to the template for debugging
+    error_details = {
+        'message': str(error),
+        'traceback': traceback.format_exc()
+    }
+        
+    return render_template('500.html', error=error_details), 500
 
 
 @app.errorhandler(Exception)
