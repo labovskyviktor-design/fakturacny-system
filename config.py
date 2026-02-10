@@ -1,8 +1,15 @@
-"""
-Konfigurácia pre fakturačný systém
-"""
 import os
+import socket
 from datetime import timedelta
+
+# Monkey-patch socket.getaddrinfo to force IPv4
+# This fixes "Cannot assign requested address" on Vercel with Supabase (IPv6 issue)
+_orig_getaddrinfo = socket.getaddrinfo
+def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    if family == 0:
+        family = socket.AF_INET
+    return _orig_getaddrinfo(host, port, family, type, proto, flags)
+socket.getaddrinfo = _ipv4_getaddrinfo
 
 
 class Config:
