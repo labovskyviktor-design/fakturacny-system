@@ -56,7 +56,7 @@ Ak `render.yaml` nefunguje:
 
 - **Build Command:** `pip install -r requirements.txt`
 - **Start Command:** `gunicorn app:app`
-- **Environment:** Python 3.11+
+- **Environment:** Python 3.12+
 
 ### Environment Variables
 
@@ -81,7 +81,65 @@ RENDER=true
    DATABASE_URL=<postgres-url>
    ```
 
-**Riešenie 2:** Externí PostgreSQL (ElephantSQL, Supabase)
+**Riešenie 2:** Supabase PostgreSQL (odporúčané pre produkciu)
+
+1. Vytvorte projekt na [Supabase](https://supabase.com)
+2. V Dashboard → Project Settings → Database nájdete Connection String
+3. Nastavte environment variable:
+   ```
+   DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.xxxxx.supabase.co:5432/postgres
+   ```
+
+**Výhody Supabase:**
+- ✅ Bezplatný tier s 500MB databázy
+- ✅ Automatické zálohy
+- ✅ Realtime subscriptions
+- ✅ Built-in authentication
+- ✅ Storage pre súbory
+
+---
+
+## 🗄️ Supabase (Odporúčané)
+
+### Vytvorenie projektu
+
+1. Prihlásenie na [Supabase](https://supabase.com)
+2. **New Project**
+3. Zadajte názov projektu a heslo databázy
+4. Vyberte región (Europe - Frankfurt pre najlepší výkon v SK)
+
+### Získanie Connection String
+
+1. **Project Settings → Database**
+2. Skopírujte **Connection String** (URI format)
+3. Nahraďte `[YOUR-PASSWORD]` vaším heslom
+
+### Environment Variables
+
+V Render/Railway/Vercel nastavte:
+
+```
+DATABASE_URL=postgresql://postgres:your-password@db.xxxxx.supabase.co:5432/postgres
+```
+
+### Migrácia z Railway
+
+Ak migrujete existujúcu databázu z Railway:
+
+```bash
+# Spustite migration script
+python migrate_db.py
+```
+
+Alebo manuálne pomocou pg_dump:
+
+```bash
+# Export z Railway
+pg_dump "postgresql://postgres:password@hopper.proxy.rlwy.net:24076/railway" > backup.sql
+
+# Import do Supabase
+psql "postgresql://postgres:password@db.xxxxx.supabase.co:5432/postgres" < backup.sql
+```
 
 ---
 
@@ -153,7 +211,7 @@ web: gunicorn app:app
 1. Prihlásenie na [PythonAnywhere](https://www.pythonanywhere.com)
 2. **Web → Add a new web app**
 3. Vyberte **Flask** framework
-4. Python 3.10+
+4. Python 3.12+
 
 ### Nastavenie
 
@@ -166,7 +224,7 @@ web: gunicorn app:app
 
 2. **Vytvorte virtual environment:**
    ```bash
-   mkvirtualenv --python=/usr/bin/python3.10 fakturask
+   mkvirtualenv --python=/usr/bin/python3.12 fakturask
    pip install -r requirements.txt
    ```
 
@@ -201,7 +259,7 @@ web: gunicorn app:app
 Vytvorte `Dockerfile`:
 
 ```dockerfile
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
