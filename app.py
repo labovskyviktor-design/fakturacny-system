@@ -57,9 +57,41 @@ login_manager.login_message_category = 'error'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Database tables are already created in Supabase from migration
-# No need to run create_all() at module import time in serverless environment
-# This was causing the function to crash on cold starts
+# Ensure database tables exist on first request (serverless-safe)
+_tables_checked = False
+
+@app.before_request
+def ensure_tables():
+    global _tables_checked
+    if not _tables_checked:
+        try:
+            db.create_all()
+            _tables_checked = True
+        except Exception as e:
+            app.logger.error(f"Failed to create tables: {e}")
+
+@app.route('/debug/db')
+def debug_db():
+    """Diagnostic endpoint for database connectivity"""
+    import traceback as tb
+    results = []
+    try:
+        results.append(f"DATABASE_URL configured: {bool(app.config.get('SQLALCHEMY_DATABASE_URI'))}")
+        # Test connection
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            results.append("DB connection: OK")
+        # Check tables
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        results.append(f"Tables found: {tables}")
+    except Exception as e:
+        results.append(f"ERROR: {e}")
+        results.append(tb.format_exc())
+    return "<br>".join(results)
+
 
 # Registrácia pomocných funkcií do Jinja2
 app.jinja_env.globals.update(
