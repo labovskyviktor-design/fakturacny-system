@@ -109,13 +109,12 @@ def handle_exception(e):
     except:
         pass
         
-    # Pass error details to the template for debugging
     error_details = {
         'message': str(e),
         'traceback': traceback.format_exc()
     }
         
-    return render_template('500.html', error=error_details), 500
+    return render_template('500_standalone.html', error=error_details), 500
 
 
 
