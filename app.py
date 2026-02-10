@@ -91,7 +91,6 @@ def internal_error(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handler pre všetky neočakávané výnimky"""
-    # pass through HTTP errors
     if hasattr(e, "code"):
         return e
         
@@ -102,8 +101,14 @@ def handle_exception(e):
         db.session.rollback()
     except:
         pass
-
-    return render_template('500.html'), 500
+        
+    # Pass error details to the template for debugging
+    error_details = {
+        'message': str(e),
+        'traceback': traceback.format_exc()
+    }
+        
+    return render_template('500.html', error=error_details), 500
 
 
 
