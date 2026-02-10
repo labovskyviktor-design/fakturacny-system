@@ -56,26 +56,9 @@ login_manager.login_message_category = 'error'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Vytvorenie tabuliek pri štarte (len ak nie sme v request contexte)
-# V serverless prostredí (Vercel) sa toto spustí pri každom requeste,
-# takže musíme byť opatrní
-try:
-    with app.app_context():
-        # Skontrolujeme či máme DATABASE_URL
-        if not app.config.get('SQLALCHEMY_DATABASE_URI'):
-            app.logger.warning("DATABASE_URL nie je nastavená. Používam SQLite.")
-        
-        try:
-            db.create_all()
-            app.logger.info("Databázové tabuľky boli úspešne inicializované.")
-        except Exception as e:
-            app.logger.error(f"Nepodarilo sa inicializovať databázu: {e}")
-            # V serverless prostredí môže byť DB už vytvorená, takže len logujeme
-            if 'already exists' not in str(e).lower():
-                app.logger.error(traceback.format_exc())
-except Exception as e:
-    app.logger.error(f"Chyba pri inicializácii app contextu: {e}")
-    # Pokračujeme aj tak - databáza sa môže inicializovať neskôr
+# Database tables are already created in Supabase from migration
+# No need to run create_all() at module import time in serverless environment
+# This was causing the function to crash on cold starts
 
 # Registrácia pomocných funkcií do Jinja2
 app.jinja_env.globals.update(
