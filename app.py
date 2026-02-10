@@ -8,6 +8,7 @@ import csv
 from datetime import date, timedelta
 from collections import defaultdict
 from flask import Flask, render_template, request, redirect, url_for, flash, make_response, Response, jsonify
+from werkzeug.exceptions import HTTPException
 import logging
 import traceback
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -97,7 +98,7 @@ def internal_error(error):
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Handler pre všetky neočakávané výnimky"""
-    if hasattr(e, "code"):
+    if isinstance(e, HTTPException):
         return e
         
     app.logger.error(f"Unhandled Exception: {e}")
