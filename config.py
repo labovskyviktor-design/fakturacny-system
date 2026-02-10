@@ -1,6 +1,4 @@
 import os
-import socket
-import re
 from datetime import timedelta
 
 
@@ -79,56 +77,16 @@ class ProductionConfig(Config):
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         Config.SQLALCHEMY_DATABASE_URI
     
-    # Helper to force IPv4 resolution
-    @staticmethod
-    def resolve_db_host(uri):
-        try:
-            # Extract hostname and port from URI
-            # Format: postgresql://user:pass@host:port/db
-            match = re.search(r'@([^:/]+)(?::(\d+))?', uri)
-            if match:
-                host = match.group(1)
-                port = match.group(2)
-                
-                # Resolve host to IPv4
-                ipv4 = socket.gethostbyname(host)
-                
-                # Replace host with IPv4 in URI
-                uri = uri.replace(f'@{host}', f'@{ipv4}')
-                
-                # Ensure sslmode is set (required when using IP to bypass hostname check)
-                if 'sslmode=' not in uri:
-                    sep = '&' if '?' in uri else '?'
-                    uri += f'{sep}sslmode=require'
-                
-                # If verify-full is set, downgrade to require because IP won't match cert
-                uri = uri.replace('sslmode=verify-full', 'sslmode=require')
-                
-                print(f"Resolved DB host {host} to {ipv4}")
-        except Exception as e:
-            print(f"Failed to resolve DB host: {e}")
-        return uri
-
-    # Ak je DATABASE_URL z Heroku/Render, oprav postgres:// na postgresql://
+    # Ak je DATABASE_URL z Heroku/Render/Railway, oprav postgres:// na postgresql://
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
     
-    # Pre Vercel serverless: Supabase vyžaduje connection pooler (port 6543)
-    if SQLALCHEMY_DATABASE_URI and 'supabase.co:5432' in SQLALCHEMY_DATABASE_URI:
-        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(':5432/', ':6543/')
-        if '?' not in SQLALCHEMY_DATABASE_URI:
-            SQLALCHEMY_DATABASE_URI += '?options=-c%20search_path%3Dpublic'
-            
-    # Force IPv4 resolution for Vercel/Supabase compatibility
-    if SQLALCHEMY_DATABASE_URI and 'supabase.co' in SQLALCHEMY_DATABASE_URI:
-        SQLALCHEMY_DATABASE_URI = resolve_db_host.__func__(SQLALCHEMY_DATABASE_URI)
-    
-    # Serverless-optimized pool settings
+    # Serverless-optimized pool settings (Railway supports pooling via URL but extra settings are good)
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
-        'pool_recycle': 60,
-        'pool_size': 2,
-        'max_overflow': 3,
+        'pool_recycle': 300,
+        'pool_size': 5,
+        'max_overflow': 10,
     }
 
 
