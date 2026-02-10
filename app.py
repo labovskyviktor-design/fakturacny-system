@@ -74,9 +74,19 @@ def ensure_tables():
 def debug_db():
     """Diagnostic endpoint for database connectivity"""
     import traceback as tb
+    from datetime import datetime
     results = []
     try:
-        results.append(f"DATABASE_URL configured: {bool(app.config.get('SQLALCHEMY_DATABASE_URI'))}")
+        db_url = app.config.get('SQLALCHEMY_DATABASE_URI', 'NOT SET')
+        # Mask password in URL for security
+        if '@' in str(db_url):
+            parts = str(db_url).split('@')
+            masked = parts[0].rsplit(':', 1)[0] + ':***@' + parts[1]
+        else:
+            masked = str(db_url)[:50]
+        results.append(f"FLASK_ENV: {os.environ.get('FLASK_ENV', 'not set')}")
+        results.append(f"DB URL: {masked}")
+        results.append(f"Timestamp: {datetime.utcnow().isoformat()}")
         # Test connection
         from sqlalchemy import text
         with db.engine.connect() as conn:
