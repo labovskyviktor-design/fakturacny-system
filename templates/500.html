@@ -20,6 +20,10 @@
             Skúste prosím obnoviť stránku za malú chvíľu.
         </p>
 
+        <div class="bg-yellow-100 p-2 mb-4 text-center text-yellow-800 font-bold border border-yellow-300">
+            DEBUG MODE ACTIVE - Template Updated: {{ now() if now is defined else 'YES' }}
+        </div>
+
         {% if error %}
         <div class="text-left bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-8 overflow-auto max-h-96">
             <p class="font-bold text-red-600 mb-2">Chyba: {{ error.message }}</p>
