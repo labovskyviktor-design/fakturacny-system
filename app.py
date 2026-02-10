@@ -92,7 +92,7 @@ def internal_error(error):
         'traceback': traceback.format_exc()
     }
         
-    return render_template('500.html', error=error_details), 500
+    return render_template('500_standalone.html', error=error_details), 500
 
 
 @app.errorhandler(Exception)
