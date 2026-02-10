@@ -76,13 +76,29 @@ class ProductionConfig(Config):
     TESTING = False
     SESSION_COOKIE_SECURE = True
     
-    # PostgreSQL pre production - ak nie je, použijeme to isté čo vo vývoji (absolútnu cestu)
+    # PostgreSQL pre production
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         Config.SQLALCHEMY_DATABASE_URI
     
     # Ak je DATABASE_URL z Heroku/Render, oprav postgres:// na postgresql://
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
+    
+    # Pre Vercel serverless: Supabase vyžaduje connection pooler (port 6543)
+    # namiesto priameho pripojenia (port 5432)
+    if SQLALCHEMY_DATABASE_URI and 'supabase.co:5432' in SQLALCHEMY_DATABASE_URI:
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace(':5432/', ':6543/')
+        # Pridaj pgbouncer parametre pre session pooling
+        if '?' not in SQLALCHEMY_DATABASE_URI:
+            SQLALCHEMY_DATABASE_URI += '?options=-c%20search_path%3Dpublic'
+    
+    # Serverless-optimized pool settings
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 60,
+        'pool_size': 2,
+        'max_overflow': 3,
+    }
 
 
 class TestingConfig(Config):
