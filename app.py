@@ -89,8 +89,7 @@ def internal_error(error):
     # Pass error details to the template for debugging
     error_details = {
         'message': str(error),
-        'traceback': traceback.format_exc(),
-        'env_vars': sorted([k for k in os.environ.keys() if 'KEY' not in k and 'SECRET' not in k and 'PASSWORD' not in k])
+        'traceback': traceback.format_exc()
     }
         
     return render_template('500_standalone.html', error=error_details), 500

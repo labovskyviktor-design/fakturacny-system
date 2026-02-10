@@ -77,18 +77,12 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     
     # PostgreSQL pre production - ak nie je, použijeme to isté čo vo vývoji (absolútnu cestu)
-    # ALEBO vyhodíme chybu, aby sme predišli použitiu SQLite na Vercel
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         Config.SQLALCHEMY_DATABASE_URI
     
     # Ak je DATABASE_URL z Heroku/Render, oprav postgres:// na postgresql://
     if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
         SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
-
-    # Check for SQLite usage in Production
-    if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
-        # Log warning but allow it for now to avoid crashing if intentional
-        pass 
 
 
 class TestingConfig(Config):
