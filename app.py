@@ -87,6 +87,14 @@ def debug_db():
         results.append(f"FLASK_ENV: {os.environ.get('FLASK_ENV', 'not set')}")
         results.append(f"DB URL: {masked}")
         results.append(f"Timestamp: {datetime.utcnow().isoformat()}")
+        # Test DNS resolution
+        try:
+            test_host = "db.posabupqsehvtwskqulh.supabase.co"
+            test_ip = socket.gethostbyname(test_host)
+            results.append(f"DNS Resolution: {test_host} -> {test_ip}")
+        except Exception as e:
+            results.append(f"DNS Resolution Failed: {e}")
+
         # Test connection
         from sqlalchemy import text
         with db.engine.connect() as conn:
