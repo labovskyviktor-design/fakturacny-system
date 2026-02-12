@@ -82,31 +82,61 @@ class ProductionConfig(Config):
     # Helper to force IPv4 resolution
     @staticmethod
     def resolve_db_host(uri):
+        """
+        Resolves DB connection issues by forcing IPv4 Pooler usage.
+        Handles Vercel's lack of IPv6 support for Supabase.
+        """
         try:
-            # Extract hostname and port from URI
+            # Parse the URI
             # Format: postgresql://user:pass@host:port/db
-            match = re.search(r'@([^:/]+)(?::(\d+))?', uri)
-            if match:
-                host = match.group(1)
-                port = match.group(2)
+            # Regex to capture parts: //(user):(pass)@(host):(port)/(db)
+            match = re.search(r'//([^:]+):([^@]+)@([^:/]+)(?::(\d+))?/(.+)$', uri)
+            if not match:
+                print("URI format not recognized, skipping resolution fix.")
+                return uri
+
+            user, password, host, port, db_name = match.groups()
+            
+            # Check if this is a Supabase domain
+            if 'supabase.co' in host:
+                print(f"Detected Supabase host: {host}")
                 
-                # Resolve host to IPv4
-                ipv4 = socket.gethostbyname(host)
+                # Extract project ref (e.g., db.xyz.supabase.co -> xyz)
+                parts = host.split('.')
+                project_ref = parts[1] if len(parts) >= 2 and parts[0] == 'db' else None
                 
-                # Replace host with IPv4 in URI
-                uri = uri.replace(f'@{host}', f'@{ipv4}')
+                # FORCE IPv4 Pooler Usage
+                # Vercel serverless functions often fail with IPv6, so we enforce the pooler.
+                pooler_host = "aws-0-eu-central-1.pooler.supabase.com"
+                pooler_port = "6543"
                 
-                # Ensure sslmode is set (required when using IP to bypass hostname check)
-                if 'sslmode=' not in uri:
-                    sep = '&' if '?' in uri else '?'
-                    uri += f'{sep}sslmode=require'
+                # Username must be user.project_ref for the pooler
+                if project_ref and project_ref not in user:
+                    new_user = f"{user}.{project_ref}"
+                    print(f"Rewriting user to {new_user} for pooler")
+                    uri = uri.replace(f'//{user}:', f'//{new_user}:')
                 
-                # If verify-full is set, downgrade to require because IP won't match cert
-                uri = uri.replace('sslmode=verify-full', 'sslmode=require')
+                # Rewrite host and port
+                print(f"Rewriting host to pooler: {pooler_host}:{pooler_port}")
+                uri = uri.replace(f'@{host}', f'@{pooler_host}')
                 
-                print(f"Resolved DB host {host} to {ipv4}")
+                if port:
+                    uri = uri.replace(f':{port}/', f':{pooler_port}/')
+                else:
+                    uri = uri.replace(f'@{pooler_host}/', f'@{pooler_host}:{pooler_port}/')
+        
+            # Ensure sslmode is require (pooler needs it)
+            if 'sslmode=' not in uri:
+                sep = '&' if '?' in uri else '?'
+                uri += f'{sep}sslmode=require'
+            
+            # Downgrade verify-full if present
+            uri = uri.replace('sslmode=verify-full', 'sslmode=require')
+
         except Exception as e:
-            print(f"Failed to resolve DB host: {e}")
+            print(f"Failed to resolve/rewrite DB host: {e}")
+            import traceback
+            traceback.print_exc()
         return uri
 
     # Ak je DATABASE_URL z Heroku/Render/Railway, oprav postgres:// na postgresql://
