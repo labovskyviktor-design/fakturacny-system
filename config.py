@@ -121,8 +121,8 @@ class ProductionConfig(Config):
         if '?' not in SQLALCHEMY_DATABASE_URI:
             SQLALCHEMY_DATABASE_URI += '?options=-c%20search_path%3Dpublic'
             
-    # Force IPv4 resolution for Vercel/Supabase compatibility
-    if SQLALCHEMY_DATABASE_URI and 'supabase.co' in SQLALCHEMY_DATABASE_URI:
+    # Force IPv4 resolution for Vercel/Supabase/Railway compatibility
+    if SQLALCHEMY_DATABASE_URI and ('supabase.co' in SQLALCHEMY_DATABASE_URI or 'rlwy.net' in SQLALCHEMY_DATABASE_URI):
         SQLALCHEMY_DATABASE_URI = resolve_db_host.__func__(SQLALCHEMY_DATABASE_URI)
     
     # Serverless-optimized pool settings
@@ -131,6 +131,12 @@ class ProductionConfig(Config):
         'pool_recycle': 60,
         'pool_size': 2,
         'max_overflow': 3,
+        'connect_args': {
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
+        }
     }
 
 

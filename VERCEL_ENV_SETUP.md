@@ -12,12 +12,10 @@ This file contains the environment variables you need to set in Vercel Dashboard
 
 ## Required Environment Variables
 
-### DATABASE_URL
-**Value:**
-```
-postgresql://postgres:Hudriko123+@db.posabupqsehvtwskqulh.supabase.co:5432/postgres
-```
-**Description:** Supabase PostgreSQL database connection string
+### 1. DATABASE_URL (Required)
+Hodnota: `postgresql://postgres:Hudriko.123@db.posabupqsehvtwskqulh.supabase.co:5432/postgres`
+
+> **Poznámka:** Aplikácia automaticky prepne na port 6543 (Pooler) a pokúsi sa vyriešiť IPv4 adresu.
 
 ---
 
